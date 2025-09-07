@@ -339,4 +339,212 @@ class OrderModel {
         $this->db->bind(':order_id', $order_id);
         return $this->db->execute();
     }
+
+    // Confirma um pedido como venda realizada
+    public function confirmOrderAsSale($order_id, $confirmed_by_user_id = null){
+        $this->db->beginTransaction();
+        try {
+            // Atualiza o status do pedido para 'vendido'
+            $this->db->query("
+                UPDATE orders 
+                SET status_pedido = 'vendido', 
+                    data_confirmacao_venda = NOW(), 
+                    confirmado_por = :confirmed_by
+                WHERE id = :order_id AND status_pedido IN ('novo', 'confirmado')
+            ");
+            $this->db->bind(':order_id', $order_id);
+            $this->db->bind(':confirmed_by', $confirmed_by_user_id);
+            $this->db->execute();
+
+            if ($this->db->rowCount() === 0) {
+                throw new Exception("Pedido não encontrado ou já possui status que não permite confirmação como venda.");
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            error_log("OrderModel::confirmOrderAsSale error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    // Atualiza status do pedido - mantém método genérico para flexibilidade
+    public function updateOrderStatus($order_id, $status, $confirmed_by_user_id = null){
+        $allowed_statuses = ['novo', 'confirmado', 'vendido', 'cancelado'];
+        
+        if (!in_array($status, $allowed_statuses)) {
+            throw new Exception("Status inválido: $status");
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $sql = "UPDATE orders SET status_pedido = :status";
+            
+            // Se está confirmando como venda, registra data e usuário
+            if ($status === 'vendido') {
+                $sql .= ", data_confirmacao_venda = NOW(), confirmado_por = :confirmed_by";
+            }
+            
+            $sql .= " WHERE id = :order_id";
+            
+            $this->db->query($sql);
+            $this->db->bind(':status', $status);
+            $this->db->bind(':order_id', $order_id);
+            
+            if ($status === 'vendido') {
+                $this->db->bind(':confirmed_by', $confirmed_by_user_id);
+            }
+            
+            $this->db->execute();
+
+            if ($this->db->rowCount() === 0) {
+                throw new Exception("Pedido não encontrado.");
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            error_log("OrderModel::updateOrderStatus error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    // Obtém estatísticas de conversão de pedidos para vendas
+    public function getOrderConversionStats($start_date = null, $end_date = null, $channel_id = null, $seller_id = null){
+        $where_conditions = [];
+        $params = [];
+
+        if ($start_date) {
+            $where_conditions[] = "o.data >= :start_date";
+            $params[':start_date'] = $start_date;
+        }
+
+        if ($end_date) {
+            $where_conditions[] = "o.data <= :end_date";
+            $params[':end_date'] = $end_date;
+        }
+
+        if ($channel_id) {
+            $where_conditions[] = "o.channel_id = :channel_id";
+            $params[':channel_id'] = $channel_id;
+        }
+
+        if ($seller_id) {
+            $where_conditions[] = "o.seller_id = :seller_id";
+            $params[':seller_id'] = $seller_id;
+        }
+
+        $where_clause = empty($where_conditions) ? "" : "WHERE " . implode(" AND ", $where_conditions);
+
+        $this->db->query("
+            SELECT 
+                COUNT(*) as total_pedidos,
+                SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) as vendas_confirmadas,
+                SUM(CASE WHEN o.status_pedido = 'cancelado' THEN 1 ELSE 0 END) as pedidos_cancelados,
+                SUM(CASE WHEN o.status_pedido IN ('novo', 'confirmado') THEN 1 ELSE 0 END) as pedidos_pendentes,
+                ROUND(
+                    (SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) * 100.0) / 
+                    NULLIF(COUNT(*), 0), 2
+                ) as taxa_conversao_percent
+            FROM orders o
+            $where_clause
+        ");
+
+        foreach ($params as $key => $value) {
+            $this->db->bind($key, $value);
+        }
+
+        return $this->db->single();
+    }
+
+    // Obtém estatísticas detalhadas por canal de venda
+    public function getConversionStatsByChannel($start_date = null, $end_date = null){
+        $where_conditions = [];
+        $params = [];
+
+        if ($start_date) {
+            $where_conditions[] = "o.data >= :start_date";
+            $params[':start_date'] = $start_date;
+        }
+
+        if ($end_date) {
+            $where_conditions[] = "o.data <= :end_date";
+            $params[':end_date'] = $end_date;
+        }
+
+        $where_clause = empty($where_conditions) ? "" : "WHERE " . implode(" AND ", $where_conditions);
+
+        $this->db->query("
+            SELECT 
+                c.nome as canal_nome,
+                c.id as canal_id,
+                COUNT(*) as total_pedidos,
+                SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) as vendas_confirmadas,
+                SUM(CASE WHEN o.status_pedido = 'cancelado' THEN 1 ELSE 0 END) as pedidos_cancelados,
+                SUM(CASE WHEN o.status_pedido IN ('novo', 'confirmado') THEN 1 ELSE 0 END) as pedidos_pendentes,
+                ROUND(
+                    (SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) * 100.0) / 
+                    NULLIF(COUNT(*), 0), 2
+                ) as taxa_conversao_percent,
+                SUM(CASE WHEN o.status_pedido = 'vendido' THEN IFNULL(o.total, 0) ELSE 0 END) as valor_total_vendas
+            FROM orders o
+            LEFT JOIN channels c ON o.channel_id = c.id
+            $where_clause
+            GROUP BY c.id, c.nome
+            ORDER BY vendas_confirmadas DESC
+        ");
+
+        foreach ($params as $key => $value) {
+            $this->db->bind($key, $value);
+        }
+
+        return $this->db->resultSet();
+    }
+
+    // Obtém estatísticas detalhadas por vendedor
+    public function getConversionStatsBySeller($start_date = null, $end_date = null){
+        $where_conditions = [];
+        $params = [];
+
+        if ($start_date) {
+            $where_conditions[] = "o.data >= :start_date";
+            $params[':start_date'] = $start_date;
+        }
+
+        if ($end_date) {
+            $where_conditions[] = "o.data <= :end_date";
+            $params[':end_date'] = $end_date;
+        }
+
+        $where_clause = empty($where_conditions) ? "" : "WHERE " . implode(" AND ", $where_conditions);
+
+        $this->db->query("
+            SELECT 
+                u.nome as vendedor_nome,
+                s.id as vendedor_id,
+                COUNT(*) as total_pedidos,
+                SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) as vendas_confirmadas,
+                SUM(CASE WHEN o.status_pedido = 'cancelado' THEN 1 ELSE 0 END) as pedidos_cancelados,
+                SUM(CASE WHEN o.status_pedido IN ('novo', 'confirmado') THEN 1 ELSE 0 END) as pedidos_pendentes,
+                ROUND(
+                    (SUM(CASE WHEN o.status_pedido = 'vendido' THEN 1 ELSE 0 END) * 100.0) / 
+                    NULLIF(COUNT(*), 0), 2
+                ) as taxa_conversao_percent,
+                SUM(CASE WHEN o.status_pedido = 'vendido' THEN IFNULL(o.total, 0) ELSE 0 END) as valor_total_vendas
+            FROM orders o
+            LEFT JOIN sellers s ON o.seller_id = s.id
+            LEFT JOIN users u ON s.user_id = u.id
+            $where_clause
+            GROUP BY s.id, u.nome
+            ORDER BY vendas_confirmadas DESC
+        ");
+
+        foreach ($params as $key => $value) {
+            $this->db->bind($key, $value);
+        }
+
+        return $this->db->resultSet();
+    }
 }

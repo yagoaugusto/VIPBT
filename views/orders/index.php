@@ -3,6 +3,9 @@
         <h1><?php echo $title; ?></h1>
     </div>
     <div class="col-md-6 text-end">
+        <a href="<?php echo URL_ROOT; ?>/orders/conversionStats" class="btn btn-outline-info me-2">
+            <i class="fas fa-chart-bar"></i> Estatísticas de Conversão
+        </a>
         <a href="<?php echo URL_ROOT; ?>/orders/add" class="btn btn-primary">
             <i class="fas fa-plus"></i> Novo Pedido
         </a>
@@ -30,8 +33,26 @@
             <td><?php echo $order->seller_nome; ?></td>
             <td><?php echo date('d/m/Y', strtotime($order->data)); ?></td>
             <td>
-                <span class="badge bg-primary">
-                    <?php echo ucfirst($order->status_pedido); ?>
+                <span class="badge <?php 
+                    switch($order->status_pedido){
+                        case 'novo': echo 'bg-secondary'; break;
+                        case 'confirmado': echo 'bg-primary'; break;
+                        case 'vendido': echo 'bg-success'; break;
+                        case 'faturado': echo 'bg-info'; break; // mantém compatibilidade
+                        case 'cancelado': echo 'bg-danger'; break;
+                        default: echo 'bg-secondary';
+                    }
+                ?>">
+                    <?php 
+                    switch($order->status_pedido){
+                        case 'novo': echo 'Novo'; break;
+                        case 'confirmado': echo 'Confirmado'; break;
+                        case 'vendido': echo 'Vendido'; break;
+                        case 'faturado': echo 'Faturado'; break; // mantém compatibilidade
+                        case 'cancelado': echo 'Cancelado'; break;
+                        default: echo ucfirst($order->status_pedido);
+                    }
+                    ?>
                 </span>
             </td>
             <td class="text-end">
