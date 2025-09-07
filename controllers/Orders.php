@@ -76,6 +76,14 @@ class Orders extends Controller {
 
     public function show($id){
         $order = $this->orderModel->getOrderById($id);
+        
+        // Verifica se o pedido existe
+        if (!$order) {
+            // Redireciona para a lista de pedidos com mensagem de erro
+            header('Location: ' . URL_ROOT . '/orders');
+            exit();
+        }
+        
         $items = $this->orderModel->getOrderItems($id);
         $fulfillments = $this->orderModel->getOrderFulfillments($id);
         

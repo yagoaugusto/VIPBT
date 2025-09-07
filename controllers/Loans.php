@@ -119,12 +119,27 @@ class Loans extends Controller {
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
             $estado_retorno = $_POST['estado_retorno'];
 
-            if($this->loanModel->returnLoanItem($loan_id, $stock_item_id, $estado_retorno)){
-                Session::flash('loan_message', 'Item devolvido com sucesso!');
+            // Validação básica do input
+            if(empty($estado_retorno)){
+                Session::flash('loan_message', 'Por favor, informe o estado de retorno do item.', 'alert alert-danger');
                 header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
                 exit();
-            } else {
-                die('Algo deu errado ao devolver o item.');
+            }
+
+            try {
+                if($this->loanModel->returnLoanItem($loan_id, $stock_item_id, $estado_retorno)){
+                    Session::flash('loan_message', 'Item devolvido com sucesso!', 'alert alert-success');
+                    header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+                    exit();
+                } else {
+                    Session::flash('loan_message', 'Erro ao devolver o item. Tente novamente.', 'alert alert-danger');
+                    header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+                    exit();
+                }
+            } catch (Exception $e) {
+                Session::flash('loan_message', 'Erro ao devolver o item: ' . $e->getMessage(), 'alert alert-danger');
+                header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+                exit();
             }
         } else {
             header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);

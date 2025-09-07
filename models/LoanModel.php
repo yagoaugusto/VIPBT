@@ -102,6 +102,34 @@ class LoanModel {
     public function returnLoanItem($loan_id, $stock_item_id, $estado_retorno){
         $this->db->beginTransaction();
         try {
+            // Valida se o item de empréstimo existe e está pendente de retorno
+            $this->db->query("SELECT * FROM loan_items WHERE loan_id = :loan_id AND stock_item_id = :stock_item_id AND estado_retorno IS NULL");
+            $this->db->bind(':loan_id', $loan_id);
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $loanItem = $this->db->single();
+            
+            if (!$loanItem) {
+                throw new Exception('Item de empréstimo não encontrado ou já foi devolvido');
+            }
+
+            // Valida se o empréstimo está ativo
+            $this->db->query("SELECT status FROM loans WHERE id = :loan_id");
+            $this->db->bind(':loan_id', $loan_id);
+            $loan = $this->db->single();
+            
+            if (!$loan || $loan->status !== 'ativo') {
+                throw new Exception('Empréstimo não está ativo');
+            }
+
+            // Valida se o stock_item existe e está emprestado
+            $this->db->query("SELECT * FROM stock_items WHERE id = :stock_item_id AND status = 'emprestado'");
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $stockItem = $this->db->single();
+            
+            if (!$stockItem) {
+                throw new Exception('Item de estoque não encontrado ou não está emprestado');
+            }
+
             // Atualiza o estado de retorno do item de empréstimo
             $this->db->query("UPDATE loan_items SET estado_retorno = :estado_retorno WHERE loan_id = :loan_id AND stock_item_id = :stock_item_id");
             $this->db->bind(':estado_retorno', $estado_retorno);
@@ -114,9 +142,15 @@ class LoanModel {
             $this->db->bind(':stock_item_id', $stock_item_id);
             $this->db->execute();
 
+            // Busca o product_id do stock_item de forma segura
+            $product_id = $this->getProductIdFromStockItem($stock_item_id);
+            if (!$product_id) {
+                throw new Exception('Não foi possível determinar o produto do item de estoque');
+            }
+
             // Registra a movimentação de retorno no inventário
             $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'emprestimo_retorno', 1, 'Devolução de Empréstimo', :loan_id, :observacao)");
-            $this->db->bind(':product_id', $this->getProductIdFromStockItem($stock_item_id)); // Busca o product_id
+            $this->db->bind(':product_id', $product_id);
             $this->db->bind(':stock_item_id', $stock_item_id);
             $this->db->bind(':loan_id', $loan_id);
             $this->db->bind(':observacao', 'Devolução de empréstimo de teste');
@@ -229,6 +263,12 @@ class LoanModel {
     private function getProductIdFromStockItem($stock_item_id){
         $this->db->query("SELECT product_id FROM stock_items WHERE id = :stock_item_id");
         $this->db->bind(':stock_item_id', $stock_item_id);
-        return $this->db->single()->product_id;
+        $result = $this->db->single();
+        
+        if (!$result) {
+            return null;
+        }
+        
+        return $result->product_id;
     }
 }
