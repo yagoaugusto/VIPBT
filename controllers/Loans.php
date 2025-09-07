@@ -100,10 +100,16 @@ class Loans extends Controller {
         $loan = $this->loanModel->getLoanById($id);
         $loanItems = $this->loanModel->getLoanItems($id);
 
+        // Carrega sellers e channels para a conversão
+        $sellerModel = $this->model('SellerModel');
+        $channelModel = $this->model('Channel');
+
         $data = [
             'title' => 'Detalhes do Empréstimo',
             'loan' => $loan,
-            'loanItems' => $loanItems
+            'loanItems' => $loanItems,
+            'sellers' => $sellerModel->getAllSellers(),
+            'channels' => $channelModel->getAllChannels()
         ];
         $this->view('loans/show', $data);
     }
@@ -119,6 +125,44 @@ class Loans extends Controller {
                 exit();
             } else {
                 die('Algo deu errado ao devolver o item.');
+            }
+        } else {
+            header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+            exit();
+        }
+    }
+
+    public function convertToSale($loan_id){
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+            
+            $seller_id = $_POST['seller_id'] ?? '';
+            $channel_id = $_POST['channel_id'] ?? '';
+            
+            if(empty($seller_id) || empty($channel_id)){
+                Session::flash('loan_message', 'Selecione o vendedor e canal de venda.', 'alert alert-danger');
+                header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+                exit();
+            }
+
+            try {
+                // Busca informações do empréstimo
+                $loan = $this->loanModel->getLoanById($loan_id);
+                if(!$loan){
+                    throw new Exception('Empréstimo não encontrado');
+                }
+
+                // Converte para venda
+                $orderId = $this->loanModel->convertLoanToSale($loan_id, $loan->customer_id, $seller_id, $channel_id);
+                
+                Session::flash('loan_message', 'Empréstimo convertido em venda com sucesso! Pedido #' . $orderId . ' criado.');
+                header('Location: ' . URL_ROOT . '/orders/show/' . $orderId);
+                exit();
+                
+            } catch (Exception $e) {
+                Session::flash('loan_message', 'Erro ao converter empréstimo: ' . $e->getMessage(), 'alert alert-danger');
+                header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);
+                exit();
             }
         } else {
             header('Location: ' . URL_ROOT . '/loans/show/' . $loan_id);

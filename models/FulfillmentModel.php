@@ -15,6 +15,12 @@ class FulfillmentModel {
         return $this->db->resultSet();
     }
 
+    public function getFulfillmentByOrderId($order_id){
+        $this->db->query("SELECT * FROM fulfillments WHERE order_id = :order_id ORDER BY created_at DESC LIMIT 1");
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->single();
+    }
+
     public function addFulfillment($data){
         $this->db->beginTransaction();
         try {

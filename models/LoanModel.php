@@ -183,6 +183,106 @@ class LoanModel {
         }
     }
 
+    // Converte empréstimo em venda - Regra de Negócio 4.3
+    public function convertLoanToSale($loan_id, $customer_id, $seller_id, $channel_id){
+        $this->db->beginTransaction();
+        try {
+            // Busca detalhes do empréstimo
+            $loan = $this->getLoanById($loan_id);
+            if(!$loan || $loan->status != 'ativo'){
+                throw new Exception('Empréstimo não encontrado ou não está ativo');
+            }
+
+            // Busca itens do empréstimo
+            $loanItems = $this->getLoanItems($loan_id);
+            if(empty($loanItems)){
+                throw new Exception('Empréstimo não possui itens');
+            }
+
+            // Cria um pedido automaticamente
+            require_once __DIR__ . '/OrderModel.php';
+            $orderModel = new OrderModel();
+
+            // Prepara dados do pedido
+            $orderData = [
+                'customer_id' => $customer_id,
+                'seller_id' => $seller_id,
+                'channel_id' => $channel_id,
+                'data' => date('Y-m-d'),
+                'observacao' => 'Conversão de empréstimo #' . $loan_id,
+                'items' => []
+            ];
+
+            // Adiciona itens do empréstimo ao pedido
+            foreach($loanItems as $item){
+                // Busca informações do produto
+                $this->db->query("
+                    SELECT p.id, p.preco 
+                    FROM products p 
+                    JOIN stock_items si ON p.id = si.product_id 
+                    WHERE si.id = :stock_item_id
+                ");
+                $this->db->bind(':stock_item_id', $item->stock_item_id);
+                $product = $this->db->single();
+
+                if($product){
+                    $orderData['items'][] = [
+                        'id' => $product->id,
+                        'qtd' => 1,
+                        'preco' => $product->preco,
+                        'desconto' => 0
+                    ];
+                }
+            }
+
+            // Cria o pedido
+            $orderId = $orderModel->addOrder($orderData);
+            if(!$orderId){
+                throw new Exception('Erro ao criar pedido da conversão');
+            }
+
+            // Atualiza status do empréstimo
+            $this->db->query("UPDATE loans SET status = 'convertido_em_venda', order_id = :order_id WHERE id = :loan_id");
+            $this->db->bind(':order_id', $orderId);
+            $this->db->bind(':loan_id', $loan_id);
+            $this->db->execute();
+
+            // Marca itens como vendidos (já foi feito no OrderModel)
+            // Não precisa fazer nada extra com os stock_items pois o addOrder já cuida disso
+
+            $this->db->commit();
+            return $orderId;
+        } catch (Exception $e){
+            $this->db->rollBack();
+            error_log($e->getMessage());
+            throw $e; // Re-throw para o controlador tratar
+        }
+    }
+
+    public function getLoanById($loan_id){
+        $this->db->query("
+            SELECT l.*, c.nome as customer_nome, u.nome as user_nome
+            FROM loans l
+            JOIN customers c ON l.customer_id = c.id
+            JOIN users u ON l.user_id = u.id
+            WHERE l.id = :loan_id
+        ");
+        $this->db->bind(':loan_id', $loan_id);
+        return $this->db->single();
+    }
+
+    public function getLoanItems($loan_id){
+        $this->db->query("
+            SELECT li.*, si.serie, p.nome as product_nome, p.sku
+            FROM loan_items li
+            JOIN stock_items si ON li.stock_item_id = si.id
+            JOIN products p ON si.product_id = p.id
+            WHERE li.loan_id = :loan_id
+        ");
+        $this->db->bind(':loan_id', $loan_id);
+        return $this->db->resultSet();
+    }
+
     // Helper para buscar product_id de um stock_item
     private function getProductIdFromStockItem($stock_item_id){
         $this->db->query("SELECT product_id FROM stock_items WHERE id = :stock_item_id");

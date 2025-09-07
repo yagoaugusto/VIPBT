@@ -122,4 +122,31 @@ class TradeInModel {
         $this->db->bind(':valor', $valor);
         return $this->db->execute();
     }
+
+    public function getApprovedTradeInsByCustomer($customer_id){
+        $this->db->query("
+            SELECT 
+                ti.id,
+                ti.customer_id,
+                ti.status,
+                ti.created_at,
+                SUM(tii.valor_creditado) as valor_creditado_total,
+                GROUP_CONCAT(CONCAT(b.nome, ' ', tii.modelo_texto) SEPARATOR ', ') as descricao
+            FROM trade_ins ti
+            JOIN trade_in_items tii ON ti.id = tii.trade_in_id
+            LEFT JOIN brands b ON tii.brand_id = b.id
+            WHERE ti.customer_id = :customer_id 
+            AND ti.status = 'aprovado'
+            AND ti.id NOT IN (
+                SELECT DISTINCT trade_in_id 
+                FROM order_credits 
+                WHERE origem = 'trade_in' 
+                AND trade_in_id IS NOT NULL
+            )
+            GROUP BY ti.id
+            ORDER BY ti.created_at DESC
+        ");
+        $this->db->bind(':customer_id', $customer_id);
+        return $this->db->resultSet();
+    }
 }

@@ -121,11 +121,37 @@ class OrderModel {
                 }
             }
 
+            // Processa créditos de trade-in
+            if(!empty($data['tradeins'])){
+                require_once __DIR__ . '/TradeInModel.php';
+                $tradeInModel = new TradeInModel();
+                
+                foreach($data['tradeins'] as $tradein){
+                    // Aplica o crédito de trade-in
+                    $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
+                    $this->db->bind(':order_id', $orderId);
+                    $this->db->bind(':descricao', 'Crédito de Trade-in #' . $tradein['id']);
+                    $this->db->bind(':valor', $tradein['credit']);
+                    $this->db->bind(':trade_in_id', $tradein['id']);
+                    $this->db->execute();
+                }
+            }
+
+            // Calcula total final com créditos
+            $totalCredits = $data['total_credits'] ?? 0;
+            $finalTotal = max(0, $orderTotal - $totalCredits);
+
             // Cria o registro de contas a receber
             $this->db->query("INSERT INTO receivables (order_id, valor_total, valor_a_receber) VALUES (:order_id, :valor_total, :valor_a_receber)");
             $this->db->bind(':order_id', $orderId);
             $this->db->bind(':valor_total', $orderTotal);
-            $this->db->bind(':valor_a_receber', $orderTotal);
+            $this->db->bind(':valor_a_receber', $finalTotal);
+            $this->db->execute();
+
+            // Atualiza o total do pedido
+            $this->db->query("UPDATE orders SET total = :total WHERE id = :id");
+            $this->db->bind(':total', $orderTotal);
+            $this->db->bind(':id', $orderId);
             $this->db->execute();
 
             $this->db->commit();
@@ -189,5 +215,45 @@ class OrderModel {
         $this->db->query("SELECT * FROM fulfillments WHERE order_id = :order_id ORDER BY created_at ASC");
         $this->db->bind(':order_id', $order_id);
         return $this->db->resultSet();
+    }
+
+    public function getOrderByPublicCode($public_code){
+        $this->db->query("
+            SELECT 
+                orders.*,
+                c.nome as customer_nome,
+                c.telefone as customer_telefone,
+                c.cpf as customer_cpf,
+                u.nome as seller_nome,
+                ch.nome as channel_nome
+            FROM orders
+            JOIN customers c ON orders.customer_id = c.id
+            JOIN sellers s ON orders.seller_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN channels ch ON orders.channel_id = ch.id
+            WHERE orders.public_code = :public_code
+        ");
+        $this->db->bind(':public_code', $public_code);
+        return $this->db->single();
+    }
+
+    public function getOrderCredits($order_id){
+        $this->db->query("SELECT * FROM order_credits WHERE order_id = :order_id ORDER BY created_at ASC");
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->resultSet();
+    }
+
+    public function updateOrderFiscalStatus($order_id, $status){
+        $this->db->query("UPDATE orders SET status_fiscal = :status WHERE id = :order_id");
+        $this->db->bind(':status', $status);
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->execute();
+    }
+
+    public function updateOrderDeliveryStatus($order_id, $status){
+        $this->db->query("UPDATE orders SET status_entrega = :status WHERE id = :order_id");
+        $this->db->bind(':status', $status);
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->execute();
     }
 }

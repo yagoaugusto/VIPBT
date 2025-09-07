@@ -107,4 +107,20 @@ class TradeIns extends Controller {
         ];
         $this->view('tradeins/show', $data);
     }
+
+    public function getApprovedByCustomer($customer_id){
+        // API endpoint para buscar trade-ins aprovados por cliente
+        if(!Session::isLoggedIn()){
+            echo json_encode(['success' => false, 'message' => 'Não autorizado']);
+            exit();
+        }
+
+        try {
+            $tradeins = $this->tradeInModel->getApprovedTradeInsByCustomer($customer_id);
+            echo json_encode(['success' => true, 'tradeins' => $tradeins]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar trade-ins']);
+        }
+        exit();
+    }
 }

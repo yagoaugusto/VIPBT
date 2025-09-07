@@ -9,8 +9,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const addItemBtn = document.getElementById('add-item-btn');
     const itemsTableBody = document.querySelector('#order-items-table tbody');
     const orderTotalEl = document.getElementById('order-total');
+    const orderSubtotalEl = document.getElementById('order-subtotal');
+    const orderCreditsEl = document.getElementById('order-credits');
+    const creditsRowEl = document.getElementById('credits-row');
+
+    // Trade-in elements
+    const customerSelect = document.getElementById('customer_id');
+    const tradeinSearch = document.getElementById('tradein_search');
+    const tradeinCredit = document.getElementById('tradein_credit');
+    const applyTradeinBtn = document.getElementById('apply-tradein-btn');
+    const appliedTradeinsDiv = document.getElementById('applied-tradeins');
+    const appliedTradeinsBody = document.getElementById('applied-tradeins-body');
+    const totalCreditsEl = document.getElementById('total-credits');
 
     let orderItems = [];
+    let appliedTradeins = [];
+    let orderSubtotal = 0;
+    let totalCredits = 0;
 
     // Adicionar item ao pedido
     addItemBtn.addEventListener('click', function() {
@@ -43,11 +58,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Renderiza a tabela de itens
     function renderItemsTable() {
         itemsTableBody.innerHTML = '';
-        let total = 0;
+        orderSubtotal = 0;
 
         orderItems.forEach((item, index) => {
             const subtotal = (item.price * item.quantity) - item.discount;
-            total += subtotal;
+            orderSubtotal += subtotal;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -61,7 +76,23 @@ document.addEventListener('DOMContentLoaded', function() {
             itemsTableBody.appendChild(row);
         });
 
-        orderTotalEl.textContent = `R$ ${total.toFixed(2)}`;
+        updateOrderTotals();
+    }
+
+    // Atualiza os totais do pedido
+    function updateOrderTotals() {
+        orderSubtotalEl.textContent = `R$ ${orderSubtotal.toFixed(2)}`;
+        orderCreditsEl.textContent = `- R$ ${totalCredits.toFixed(2)}`;
+        
+        const finalTotal = Math.max(0, orderSubtotal - totalCredits);
+        orderTotalEl.textContent = `R$ ${finalTotal.toFixed(2)}`;
+        
+        // Mostra/oculta linha de créditos
+        if (totalCredits > 0) {
+            creditsRowEl.style.display = '';
+        } else {
+            creditsRowEl.style.display = 'none';
+        }
     }
 
     // Atualiza quantidade, preço ou desconto
@@ -89,6 +120,129 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // === TRADE-IN FUNCTIONALITY ===
+    
+    // Carrega trade-ins quando cliente é selecionado
+    customerSelect.addEventListener('change', function() {
+        const customerId = this.value;
+        tradeinSearch.innerHTML = '<option value="">Selecione um trade-in aprovado para aplicar crédito...</option>';
+        tradeinCredit.value = '';
+        
+        if (customerId) {
+            loadApprovedTradeins(customerId);
+        }
+    });
+
+    // Carrega trade-ins aprovados do cliente
+    function loadApprovedTradeins(customerId) {
+        fetch(`${urlRoot}/tradeins/getApprovedByCustomer/${customerId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.tradeins) {
+                    data.tradeins.forEach(tradein => {
+                        if (!appliedTradeins.find(applied => applied.id === tradein.id)) {
+                            const option = document.createElement('option');
+                            option.value = tradein.id;
+                            option.dataset.credit = tradein.valor_creditado_total;
+                            option.textContent = `#${tradein.id} - ${tradein.descricao} (R$ ${parseFloat(tradein.valor_creditado_total).toFixed(2)})`;
+                            tradeinSearch.appendChild(option);
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error('Erro ao carregar trade-ins:', error));
+    }
+
+    // Atualiza valor do crédito quando trade-in é selecionado
+    tradeinSearch.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value && selectedOption.dataset.credit) {
+            tradeinCredit.value = `R$ ${parseFloat(selectedOption.dataset.credit).toFixed(2)}`;
+        } else {
+            tradeinCredit.value = '';
+        }
+    });
+
+    // Aplica crédito de trade-in
+    applyTradeinBtn.addEventListener('click', function() {
+        const selectedOption = tradeinSearch.options[tradeinSearch.selectedIndex];
+        if (!selectedOption.value) {
+            alert('Selecione um trade-in para aplicar.');
+            return;
+        }
+
+        const tradeinId = selectedOption.value;
+        const tradeinCredit = parseFloat(selectedOption.dataset.credit);
+        const tradeinDescription = selectedOption.textContent;
+
+        // Verifica se já foi aplicado
+        if (appliedTradeins.find(applied => applied.id === tradeinId)) {
+            alert('Este trade-in já foi aplicado.');
+            return;
+        }
+
+        // Adiciona à lista de aplicados
+        appliedTradeins.push({
+            id: tradeinId,
+            description: tradeinDescription,
+            credit: tradeinCredit
+        });
+
+        // Remove da lista de disponíveis
+        selectedOption.remove();
+        tradeinSearch.value = '';
+        document.getElementById('tradein_credit').value = '';
+
+        renderAppliedTradeins();
+        updateOrderTotals();
+    });
+
+    // Renderiza trade-ins aplicados
+    function renderAppliedTradeins() {
+        appliedTradeinsBody.innerHTML = '';
+        totalCredits = 0;
+
+        appliedTradeins.forEach((tradein, index) => {
+            totalCredits += tradein.credit;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${tradein.id}</td>
+                <td>${tradein.description.split(' - ')[1]}</td>
+                <td>R$ ${tradein.credit.toFixed(2)}</td>
+                <td><button type="button" class="btn btn-danger btn-sm remove-tradein" data-index="${index}">&times;</button></td>
+            `;
+            appliedTradeinsBody.appendChild(row);
+        });
+
+        totalCreditsEl.textContent = `R$ ${totalCredits.toFixed(2)}`;
+        
+        // Mostra/oculta seção de trade-ins aplicados
+        if (appliedTradeins.length > 0) {
+            appliedTradeinsDiv.style.display = '';
+        } else {
+            appliedTradeinsDiv.style.display = 'none';
+        }
+    }
+
+    // Remove trade-in aplicado
+    appliedTradeinsBody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-tradein')) {
+            const index = e.target.dataset.index;
+            const removedTradein = appliedTradeins.splice(index, 1)[0];
+            
+            // Adiciona de volta à lista de disponíveis
+            const option = document.createElement('option');
+            option.value = removedTradein.id;
+            option.dataset.credit = removedTradein.credit;
+            option.textContent = removedTradein.description;
+            tradeinSearch.appendChild(option);
+            
+            renderAppliedTradeins();
+            updateOrderTotals();
+        }
+    });
+
     // Submeter o formulário
     orderForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -103,7 +257,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 qtd: item.quantity,
                 preco: item.price,
                 desconto: item.discount
-            }))
+            })),
+            tradeins: appliedTradeins.map(tradein => ({
+                id: tradein.id,
+                credit: tradein.credit
+            })),
+            total_credits: totalCredits
         };
         
         if (!orderData.customer_id || !orderData.seller_id || orderItems.length === 0) {

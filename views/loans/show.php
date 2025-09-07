@@ -71,8 +71,49 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer text-end">
-                <a href="<?php echo URL_ROOT; ?>/loans" class="btn btn-secondary">Voltar para a Lista</a>
+            <div class="card-footer">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <!-- Conversão em Venda -->
+                        <?php if($loan->status == 'ativo'): ?>
+                            <form action="<?php echo URL_ROOT; ?>/loans/convertToSale/<?php echo $loan->id; ?>" method="POST" class="d-inline-block me-3" onsubmit="return confirm('Tem certeza que deseja converter este empréstimo em venda?')">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <select name="seller_id" class="form-select form-select-sm" required>
+                                            <option value="">Selecione o Vendedor</option>
+                                            <?php foreach($sellers as $seller): ?>
+                                                <option value="<?php echo $seller->id; ?>"><?php echo $seller->nome; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select name="channel_id" class="form-select form-select-sm" required>
+                                            <option value="">Selecione o Canal</option>
+                                            <?php foreach($channels as $channel): ?>
+                                                <option value="<?php echo $channel->id; ?>"><?php echo $channel->nome; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-shopping-cart"></i> Converter em Venda
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        <?php elseif($loan->status == 'convertido_em_venda'): ?>
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle"></i> Este empréstimo foi convertido em venda.
+                                <?php if($loan->order_id): ?>
+                                    <a href="<?php echo URL_ROOT; ?>/orders/show/<?php echo $loan->order_id; ?>" class="btn btn-sm btn-outline-primary ms-2">Ver Pedido</a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="<?php echo URL_ROOT; ?>/loans" class="btn btn-secondary">Voltar para a Lista</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -11,11 +11,14 @@ class Router {
         $url = $this->getUrl();
 
         // Procura por um controller correspondente em /controllers
-        if(isset($url[0]) && file_exists('../controllers/' . ucwords($url[0]) . '.php')){
-            // Se existir, define como controller atual
-            $this->currentController = ucwords($url[0]);
-            // Remove da URL
-            unset($url[0]);
+        if(isset($url[0])){
+            $controllerName = $this->getControllerName($url[0]);
+            if(file_exists('../controllers/' . $controllerName . '.php')){
+                // Se existir, define como controller atual
+                $this->currentController = $controllerName;
+                // Remove da URL
+                unset($url[0]);
+            }
         }
 
         // Requere o controller
@@ -50,5 +53,36 @@ class Router {
         }
         // Retorna um array vazio se não houver url, para carregar o controller padrão
         return [];
+    }
+
+    private function getControllerName($urlSegment){
+        // Try different controller name formats
+        $attempts = [
+            ucwords($urlSegment), // Publicorders
+            ucwords(str_replace('_', '', $urlSegment)), // Publicorders
+            str_replace(' ', '', ucwords(str_replace('_', ' ', $urlSegment))), // Publicorders
+            // Handle special cases
+            'PublicOrders' // Direct mapping for publicorders
+        ];
+
+        // Special mappings for known cases
+        $specialMappings = [
+            'publicorders' => 'PublicOrders',
+            'tradeins' => 'TradeIns'
+        ];
+
+        if(isset($specialMappings[strtolower($urlSegment)])){
+            return $specialMappings[strtolower($urlSegment)];
+        }
+
+        // Try standard ucwords first
+        foreach($attempts as $attempt){
+            if(file_exists('../controllers/' . $attempt . '.php')){
+                return $attempt;
+            }
+        }
+
+        // Default to ucwords
+        return ucwords($urlSegment);
     }
 }

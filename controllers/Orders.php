@@ -42,7 +42,9 @@ class Orders extends Controller {
                 'channel_id' => $requestData['channel_id'],
                 'data' => date('Y-m-d'),
                 'observacao' => $requestData['observacao'],
-                'items' => $requestData['items']
+                'items' => $requestData['items'],
+                'tradeins' => $requestData['tradeins'] ?? [],
+                'total_credits' => $requestData['total_credits'] ?? 0
             ];
 
             try {
@@ -75,14 +77,70 @@ class Orders extends Controller {
     public function show($id){
         $order = $this->orderModel->getOrderById($id);
         $items = $this->orderModel->getOrderItems($id);
-        $fulfillments = $this->orderModel->getOrderFulfillments($id); // Fetch fulfillments
+        $fulfillments = $this->orderModel->getOrderFulfillments($id);
+        
+        // Load credits applied to this order
+        $credits = $this->orderModel->getOrderCredits($id);
 
         $data = [
             'title' => 'Detalhes do Pedido ' . $order->public_code,
             'order' => $order,
             'items' => $items,
-            'fulfillments' => $fulfillments // Pass fulfillments to the view
+            'fulfillments' => $fulfillments,
+            'credits' => $credits
         ];
         $this->view('orders/show', $data);
+    }
+
+    public function updateFiscalStatus($order_id){
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+            
+            $status = $data['status'] ?? '';
+            
+            if(empty($status) || !in_array($status, ['nao_faturado', 'faturado'])){
+                echo json_encode(['success' => false, 'message' => 'Status inválido']);
+                exit();
+            }
+
+            try {
+                $result = $this->orderModel->updateOrderFiscalStatus($order_id, $status);
+                if($result){
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Erro ao atualizar status']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit();
+        }
+    }
+
+    public function updateDeliveryStatus($order_id){
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+            
+            $status = $data['status'] ?? '';
+            
+            if(empty($status) || !in_array($status, ['nao_entregue', 'preparando', 'enviado', 'entregue', 'entrega_parcial'])){
+                echo json_encode(['success' => false, 'message' => 'Status inválido']);
+                exit();
+            }
+
+            try {
+                $result = $this->orderModel->updateOrderDeliveryStatus($order_id, $status);
+                if($result){
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Erro ao atualizar status']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit();
+        }
     }
 }

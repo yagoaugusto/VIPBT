@@ -83,12 +83,69 @@
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th colspan="4" class="text-end">Total:</th>
+                                <th colspan="4" class="text-end">Subtotal:</th>
+                                <th id="order-subtotal">R$ 0,00</th>
+                                <th></th>
+                            </tr>
+                            <tr id="credits-row" style="display: none;">
+                                <th colspan="4" class="text-end text-success">Créditos Trade-in:</th>
+                                <th id="order-credits" class="text-success">- R$ 0,00</th>
+                                <th></th>
+                            </tr>
+                            <tr class="table-primary">
+                                <th colspan="4" class="text-end">Total Final:</th>
                                 <th id="order-total">R$ 0,00</th>
                                 <th></th>
                             </tr>
                         </tfoot>
                     </table>
+                </fieldset>
+
+                <!-- Trade-in / Créditos -->
+                <fieldset class="border p-3 mb-3">
+                    <legend class="w-auto">Trade-in / Créditos</legend>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <label for="tradein_search">Buscar Trade-in Aprovado:</label>
+                            <select id="tradein_search" class="form-select">
+                                <option value="">Selecione um trade-in aprovado para aplicar crédito...</option>
+                                <!-- Preenchido via AJAX baseado no cliente selecionado -->
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="tradein_credit">Valor Crédito:</label>
+                            <input type="text" id="tradein_credit" class="form-control" readonly placeholder="R$ 0,00">
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" id="apply-tradein-btn" class="btn btn-info w-100">Aplicar</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Trade-ins aplicados -->
+                    <div id="applied-tradeins" class="mt-3" style="display: none;">
+                        <h6>Créditos Aplicados:</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Trade-in</th>
+                                    <th>Descrição</th>
+                                    <th width="120px">Valor</th>
+                                    <th width="50px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="applied-tradeins-body">
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="2" class="text-end">Total Créditos:</th>
+                                    <th id="total-credits">R$ 0,00</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </fieldset>
 
                 <div class="d-grid gap-2">
