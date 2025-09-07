@@ -1,6 +1,7 @@
 <?php
 
 use core\Controller;
+use core\Session;
 
 class Orders extends Controller {
     private $orderModel;
@@ -181,8 +182,14 @@ class Orders extends Controller {
 
     public function confirmSale($order_id){
         if($_SERVER['REQUEST_METHOD'] == 'POST'){
-            // Simula usuário logado - em um sistema real, isso viria da sessão
-            $current_user_id = 1; // TODO: Implementar sistema de autenticação
+            // Get current user from session
+            $current_user_id = Session::get('user_id');
+            
+            // Check if user is logged in
+            if(!$current_user_id) {
+                echo json_encode(['success' => false, 'message' => 'Usuário não autenticado']);
+                exit();
+            }
             
             try {
                 $result = $this->orderModel->confirmOrderAsSale($order_id, $current_user_id);
@@ -192,7 +199,7 @@ class Orders extends Controller {
                     echo json_encode(['success' => false, 'message' => 'Erro ao confirmar venda']);
                 }
             } catch (Exception $e) {
-                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+                echo json_encode(['success' => false, 'message' => 'Erro ao confirmar venda: ' . $e->getMessage()]);
             }
             exit();
         }
@@ -204,7 +211,14 @@ class Orders extends Controller {
             $data = json_decode($json, true);
             
             $status = $data['status'] ?? '';
-            $current_user_id = 1; // TODO: Implementar sistema de autenticação
+            // Get current user from session
+            $current_user_id = Session::get('user_id');
+            
+            // Check if user is logged in
+            if(!$current_user_id) {
+                echo json_encode(['success' => false, 'message' => 'Usuário não autenticado']);
+                exit();
+            }
             
             if(empty($status) || !in_array($status, ['novo', 'confirmado', 'vendido', 'cancelado'])){
                 echo json_encode(['success' => false, 'message' => 'Status inválido']);
