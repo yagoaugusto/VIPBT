@@ -190,4 +190,24 @@ class OrderModel {
         $this->db->bind(':order_id', $order_id);
         return $this->db->resultSet();
     }
+
+    public function getOrderByPublicCode($public_code){
+        $this->db->query("
+            SELECT 
+                orders.*,
+                c.nome as customer_nome,
+                c.telefone as customer_telefone,
+                c.cpf as customer_cpf,
+                u.nome as seller_nome,
+                ch.nome as channel_nome
+            FROM orders
+            JOIN customers c ON orders.customer_id = c.id
+            JOIN sellers s ON orders.seller_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN channels ch ON orders.channel_id = ch.id
+            WHERE orders.public_code = :public_code
+        ");
+        $this->db->bind(':public_code', $public_code);
+        return $this->db->single();
+    }
 }

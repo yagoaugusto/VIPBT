@@ -12,7 +12,7 @@ class Controller {
     }
 
     // Método base para carregar views
-    public function view($view, $data = []){
+    public function view($view, $data = [], $useLayout = true){
         // Constrói o caminho para o arquivo da view
         $viewFile = '../views/' . $view . '.php';
 
@@ -21,13 +21,18 @@ class Controller {
             // Extrai os dados para que possam ser usados como variáveis na view
             extract($data);
             
-            // O conteúdo da view será capturado e inserido no layout
-            ob_start();
-            require $viewFile;
-            $content = ob_get_clean();
+            if($useLayout){
+                // O conteúdo da view será capturado e inserido no layout
+                ob_start();
+                require $viewFile;
+                $content = ob_get_clean();
 
-            // Inclui o layout principal
-            require_once '../views/layouts/main.php';
+                // Inclui o layout principal
+                require_once '../views/layouts/main.php';
+            } else {
+                // Inclui a view diretamente sem layout
+                require $viewFile;
+            }
         } else {
             // A view não existe
             die('View não encontrada: ' . $viewFile);
