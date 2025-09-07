@@ -178,4 +178,93 @@ class Orders extends Controller {
             exit();
         }
     }
+
+    public function confirmSale($order_id){
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            // Simula usuário logado - em um sistema real, isso viria da sessão
+            $current_user_id = 1; // TODO: Implementar sistema de autenticação
+            
+            try {
+                $result = $this->orderModel->confirmOrderAsSale($order_id, $current_user_id);
+                if($result){
+                    echo json_encode(['success' => true, 'message' => 'Pedido confirmado como venda com sucesso!']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Erro ao confirmar venda']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit();
+        }
+    }
+
+    public function updateOrderStatus($order_id){
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+            
+            $status = $data['status'] ?? '';
+            $current_user_id = 1; // TODO: Implementar sistema de autenticação
+            
+            if(empty($status) || !in_array($status, ['novo', 'confirmado', 'vendido', 'cancelado'])){
+                echo json_encode(['success' => false, 'message' => 'Status inválido']);
+                exit();
+            }
+
+            try {
+                $result = $this->orderModel->updateOrderStatus($order_id, $status, $current_user_id);
+                if($result){
+                    echo json_encode(['success' => true, 'message' => 'Status do pedido atualizado com sucesso!']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Erro ao atualizar status']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit();
+        }
+    }
+
+    // Endpoint para estatísticas de conversão (para futuros relatórios)
+    public function conversionStats(){
+        $start_date = $_GET['start_date'] ?? null;
+        $end_date = $_GET['end_date'] ?? null;
+        $channel_id = $_GET['channel_id'] ?? null;
+        $seller_id = $_GET['seller_id'] ?? null;
+
+        try {
+            $stats = $this->orderModel->getOrderConversionStats($start_date, $end_date, $channel_id, $seller_id);
+            $stats_by_channel = $this->orderModel->getConversionStatsByChannel($start_date, $end_date);
+            $stats_by_seller = $this->orderModel->getConversionStatsBySeller($start_date, $end_date);
+
+            $data = [
+                'title' => 'Estatísticas de Conversão de Pedidos',
+                'overall_stats' => $stats,
+                'stats_by_channel' => $stats_by_channel,
+                'stats_by_seller' => $stats_by_seller,
+                'filters' => [
+                    'start_date' => $start_date,
+                    'end_date' => $end_date,
+                    'channel_id' => $channel_id,
+                    'seller_id' => $seller_id
+                ]
+            ];
+
+            // Se for uma requisição AJAX, retorna JSON
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode($data);
+                exit();
+            }
+
+            // Carrega dados adicionais para filtros
+            $data['channels'] = $this->channelModel->getAllChannels();
+            $data['sellers'] = $this->sellerModel->getAllSellers();
+
+            $this->view('orders/conversion_stats', $data);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit();
+        }
+    }
 }

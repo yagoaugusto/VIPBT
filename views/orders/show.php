@@ -33,7 +33,50 @@
                                         case 'cancelado': echo 'bg-danger'; break;
                                         default: echo 'bg-secondary';
                                     }
-                                ?>"><?php echo ucfirst($order->status_pedido); ?></span>
+                                <span class="badge <?php 
+                    switch($order->status_pedido){
+                        case 'novo': echo 'bg-secondary'; break;
+                        case 'confirmado': echo 'bg-primary'; break;
+                        case 'vendido': echo 'bg-success'; break;
+                        case 'faturado': echo 'bg-info'; break; // mantém compatibilidade
+                        case 'cancelado': echo 'bg-danger'; break;
+                        default: echo 'bg-secondary';
+                    }
+                ?>"><?php 
+                    switch($order->status_pedido){
+                        case 'novo': echo 'Novo'; break;
+                        case 'confirmado': echo 'Confirmado'; break;
+                        case 'vendido': echo 'Vendido'; break;
+                        case 'faturado': echo 'Faturado'; break; // mantém compatibilidade
+                        case 'cancelado': echo 'Cancelado'; break;
+                        default: echo ucfirst($order->status_pedido);
+                    }
+                ?></span>
+                
+                <?php if($order->status_pedido == 'novo' || $order->status_pedido == 'confirmado'): ?>
+                    <div class="mt-2">
+                        <?php if($order->status_pedido == 'novo'): ?>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateOrderStatus('<?php echo $order->id; ?>', 'confirmado')">
+                            Confirmar Pedido
+                        </button>
+                        <?php endif; ?>
+                        
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="confirmSale('<?php echo $order->id; ?>')">
+                            <i class="fas fa-check"></i> Confirmar Venda
+                        </button>
+                        
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateOrderStatus('<?php echo $order->id; ?>', 'cancelado')">
+                            Cancelar
+                        </button>
+                    </div>
+                <?php elseif($order->status_pedido == 'vendido' && isset($order->data_confirmacao_venda)): ?>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> Venda confirmada em: 
+                            <?php echo date('d/m/Y H:i', strtotime($order->data_confirmacao_venda)); ?>
+                        </small>
+                    </div>
+                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -334,6 +377,70 @@ function updateDeliveryStatus(orderId, status) {
         .then(response => response.json())
         .then(data => {
             if(data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao atualizar status: ' + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro de comunicação');
+        });
+    }
+}
+
+function confirmSale(orderId) {
+    if(confirm('Tem certeza que deseja confirmar este pedido como VENDA REALIZADA?')) {
+        fetch(`<?php echo URL_ROOT; ?>/orders/confirmSale/${orderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert(data.message || 'Venda confirmada com sucesso!');
+                location.reload();
+            } else {
+                alert('Erro ao confirmar venda: ' + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro de comunicação');
+        });
+    }
+}
+
+function updateOrderStatus(orderId, status) {
+    let confirmMessage = '';
+    switch(status) {
+        case 'confirmado':
+            confirmMessage = 'Confirmar este pedido?';
+            break;
+        case 'cancelado':
+            confirmMessage = 'Tem certeza que deseja CANCELAR este pedido?';
+            break;
+        case 'vendido':
+            confirmMessage = 'Confirmar este pedido como VENDA REALIZADA?';
+            break;
+        default:
+            confirmMessage = 'Atualizar status do pedido?';
+    }
+    
+    if(confirm(confirmMessage)) {
+        fetch(`<?php echo URL_ROOT; ?>/orders/updateOrderStatus/${orderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert(data.message || 'Status atualizado com sucesso!');
                 location.reload();
             } else {
                 alert('Erro ao atualizar status: ' + (data.message || 'Erro desconhecido'));
