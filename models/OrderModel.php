@@ -96,6 +96,9 @@ class OrderModel {
         $this->db->beginTransaction();
 
         try {
+            // Check if required table columns exist
+            $this->checkRequiredTableColumns();
+            
             $public_code = $this->generatePublicCode();
 
             $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao)");
@@ -255,10 +258,11 @@ class OrderModel {
             if($trade_in_id){
                 $description .= ' #' . $trade_in_id;
             }
-            $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor) VALUES (:order_id, 'trade_in', :descricao, :valor)");
+            $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
             $this->db->bind(':order_id', $order_id);
             $this->db->bind(':descricao', $description);
             $this->db->bind(':valor', $credit_value);
+            $this->db->bind(':trade_in_id', $trade_in_id);
             $this->db->execute();
 
             // Atualiza o valor a receber do pedido
@@ -546,5 +550,36 @@ class OrderModel {
         }
 
         return $this->db->resultSet();
+    }
+
+    // Check if required database columns exist
+    private function checkRequiredTableColumns(){
+        // Check if order_credits table has trade_in_id column
+        $this->db->query("
+            SELECT COUNT(*) as column_exists 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'order_credits' 
+            AND COLUMN_NAME = 'trade_in_id'
+        ");
+        $result = $this->db->single();
+        
+        if (!$result || $result->column_exists == 0) {
+            throw new Exception("Database schema incomplete: order_credits table missing trade_in_id column. Please run database updates.");
+        }
+
+        // Check if orders table has total column
+        $this->db->query("
+            SELECT COUNT(*) as column_exists 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'orders' 
+            AND COLUMN_NAME = 'total'
+        ");
+        $result = $this->db->single();
+        
+        if (!$result || $result->column_exists == 0) {
+            throw new Exception("Database schema incomplete: orders table missing total column. Please run database updates.");
+        }
     }
 }
