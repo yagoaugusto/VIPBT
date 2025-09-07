@@ -82,11 +82,11 @@ class Logistics extends Controller {
                         header('Content-Type: application/json');
                         echo json_encode([
                             'success' => false,
-                            'message' => 'Algo deu errado ao registrar a expedição.'
+                            'message' => 'Não foi possível salvar o registro de expedição. Verifique os dados e tente novamente.'
                         ]);
                         exit();
                     } else {
-                        die('Algo deu errado ao registrar a expedição.');
+                        die('Não foi possível salvar o registro de expedição. Verifique os dados e tente novamente.');
                     }
                 }
             } else {

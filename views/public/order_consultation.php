@@ -95,6 +95,59 @@
             border-radius: 8px;
             padding: 1rem;
             margin-bottom: 0.5rem;
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .item-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .consultation-form {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .status-preparando { background-color: #ffc107 !important; }
+        .status-enviado { background-color: #0dcaf0 !important; }
+        .status-entregue { background-color: #198754 !important; }
+        
+        .tracking-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-left: 4px solid #2196f3;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        
+        .btn-copy {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-copy:hover {
+            background-color: #0056b3 !important;
+        }
+        
+        @media (max-width: 768px) {
+            .header-brand {
+                padding: 1rem 0;
+            }
+            
+            .consultation-card {
+                margin: 1rem;
+            }
+            
+            .timeline-item {
+                padding-left: 40px;
+            }
+            
+            .timeline-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
@@ -116,16 +169,26 @@
                                 <p class="text-muted">Digite o código do seu pedido para acompanhar o status</p>
                             </div>
                             
-                            <form action="" method="GET" class="mb-4">
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text"><i class="fas fa-barcode"></i></span>
-                                    <input type="text" class="form-control" name="code" placeholder="Ex: BT-9X3Q7L" required>
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="fas fa-search"></i> Consultar
-                                    </button>
+                            <div class="consultation-form">
+                                <form action="" method="GET" class="mb-4">
+                                    <div class="input-group input-group-lg">
+                                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                        <input type="text" class="form-control" name="code" placeholder="Ex: BT-9X3Q7L" required autocomplete="off">
+                                        <button class="btn btn-primary" type="submit">
+                                            <i class="fas fa-search"></i> Consultar
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted mt-2 d-block">
+                                        <i class="fas fa-info-circle"></i> O código do pedido está no seu e-mail de confirmação ou nota fiscal
+                                    </small>
+                                </form>
+                                
+                                <div class="text-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-shield-alt"></i> Suas informações estão protegidas e seguras
+                                    </small>
                                 </div>
-                                <small class="form-text text-muted">O código do pedido está no seu e-mail de confirmação ou nota fiscal</small>
-                            </form>
+                            </div>
                             
                         <?php elseif($data['error']): ?>
                             <!-- Erro -->
@@ -219,12 +282,27 @@
 
                             <!-- Código de Rastreio -->
                             <?php if($data['fulfillment'] && $data['fulfillment']->codigo_rastreio): ?>
-                                <div class="alert alert-info mt-3">
-                                    <h6><i class="fas fa-truck"></i> Rastreamento</h6>
-                                    <p class="mb-1"><strong>Transportadora:</strong> <?php echo $data['fulfillment']->transportadora; ?></p>
-                                    <p class="mb-0"><strong>Código:</strong> 
-                                        <span class="badge bg-primary"><?php echo $data['fulfillment']->codigo_rastreio; ?></span>
-                                    </p>
+                                <div class="tracking-info mt-3">
+                                    <h6><i class="fas fa-truck"></i> Informações de Rastreamento</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Transportadora:</strong> <?php echo $data['fulfillment']->transportadora; ?></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Código de Rastreio:</strong></p>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-primary me-2 fs-6"><?php echo $data['fulfillment']->codigo_rastreio; ?></span>
+                                                <button class="btn btn-sm btn-outline-primary btn-copy" onclick="copyTrackingCode('<?php echo $data['fulfillment']->codigo_rastreio; ?>')" title="Copiar código">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php if($data['fulfillment']->enviado_em): ?>
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar"></i> Enviado em: <?php echo date('d/m/Y H:i', strtotime($data['fulfillment']->enviado_em)); ?>
+                                        </small>
+                                    <?php endif; ?>
                                 </div>
                             <?php endif; ?>
 
@@ -249,5 +327,50 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Function to copy tracking code to clipboard
+        function copyTrackingCode(code) {
+            navigator.clipboard.writeText(code).then(function() {
+                // Show success feedback
+                const btn = event.target.closest('.btn-copy');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Erro ao copiar: ', err);
+            });
+        }
+
+        // Auto-focus on search input when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.querySelector('input[name="code"]');
+            if(searchInput) {
+                searchInput.focus();
+            }
+        });
+
+        // Format input code as user types
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.querySelector('input[name="code"]');
+            if(codeInput) {
+                codeInput.addEventListener('input', function() {
+                    // Convert to uppercase and add BT- prefix if not present
+                    let value = this.value.toUpperCase();
+                    if(value && !value.startsWith('BT-') && value.length > 2) {
+                        value = 'BT-' + value.replace('BT-', '');
+                    }
+                    this.value = value;
+                });
+            }
+        });
+    </script>
 </body>
 </html>
