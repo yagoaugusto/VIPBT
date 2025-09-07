@@ -1,8 +1,12 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <h1><?php echo $title; ?></h1>
+        <p class="text-muted">Listagem de todos os itens físicos em estoque</p>
     </div>
     <div class="col-md-6 text-end">
+        <a href="<?php echo URL_ROOT; ?>/stock/balances" class="btn btn-info me-2">
+            <i class="fas fa-calculator"></i> Saldos de Estoque
+        </a>
         <a href="<?php echo URL_ROOT; ?>/stock/add" class="btn btn-primary">
             <i class="fas fa-plus"></i> Registrar Entrada
         </a>

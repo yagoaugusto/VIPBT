@@ -77,6 +77,10 @@ class OrderModel {
 
             $orderTotal = 0;
             if(isset($data['items']) && is_array($data['items'])){
+                // Carrega o modelo de estoque para reduzir o estoque
+                require_once '../models/StockModel.php';
+                $stockModel = new StockModel();
+                
                 foreach($data['items'] as $item){
                     $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
                     $this->db->bind(':order_id', $orderId);
@@ -86,6 +90,26 @@ class OrderModel {
                     $this->db->bind(':desconto', $item['desconto']);
                     $this->db->execute();
                     $orderTotal += ($item['preco'] * $item['qtd']) - $item['desconto'];
+                    
+                    // Reduz o estoque: marca itens como vendidos
+                    $availableItems = $stockModel->getAvailableStockItems($item['id']);
+                    $qtdToSell = $item['qtd'];
+                    
+                    foreach($availableItems as $stockItem){
+                        if($qtdToSell <= 0) break;
+                        
+                        $stockModel->markStockItemAsSold($stockItem->id, $orderId);
+                        $qtdToSell--;
+                    }
+                    
+                    // Se não há itens físicos suficientes, ainda registra a movimentação
+                    if($qtdToSell > 0){
+                        $this->db->query("INSERT INTO inventory_moves (product_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, 'saida', :qtd, 'Venda', :order_id, 'Venda sem item físico específico')");
+                        $this->db->bind(':product_id', $item['id']);
+                        $this->db->bind(':qtd', $qtdToSell);
+                        $this->db->bind(':order_id', $orderId);
+                        $this->db->execute();
+                    }
                 }
             }
 

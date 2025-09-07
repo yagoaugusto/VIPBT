@@ -79,4 +79,87 @@ class StockModel {
         ");
         return $this->db->resultSet();
     }
+
+    public function getStockBalances(){
+        $this->db->query("
+            SELECT 
+                p.id as product_id,
+                p.nome as product_nome,
+                p.sku,
+                b.nome as brand_nome,
+                p.tipo_condicao,
+                COALESCE(
+                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = p.id AND tipo IN ('entrada', 'emprestimo_retorno')), 0
+                ) - COALESCE(
+                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = p.id AND tipo IN ('saida', 'emprestimo_saida', 'baixa_reserva')), 0
+                ) as saldo_calculado,
+                COUNT(si.id) as itens_fisicos,
+                SUM(CASE WHEN si.status = 'em_estoque' THEN 1 ELSE 0 END) as itens_disponiveis,
+                SUM(CASE WHEN si.status = 'reservado' THEN 1 ELSE 0 END) as itens_reservados,
+                SUM(CASE WHEN si.status = 'emprestado' THEN 1 ELSE 0 END) as itens_emprestados,
+                SUM(CASE WHEN si.status = 'vendido' THEN 1 ELSE 0 END) as itens_vendidos
+            FROM products p
+            JOIN brands b ON p.brand_id = b.id
+            LEFT JOIN stock_items si ON p.id = si.product_id
+            GROUP BY p.id, p.nome, p.sku, b.nome, p.tipo_condicao
+            HAVING saldo_calculado > 0 OR itens_fisicos > 0
+            ORDER BY p.nome ASC
+        ");
+        return $this->db->resultSet();
+    }
+
+    public function getProductStockBalance($product_id){
+        $this->db->query("
+            SELECT 
+                COALESCE(
+                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id AND tipo IN ('entrada', 'emprestimo_retorno')), 0
+                ) - COALESCE(
+                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id AND tipo IN ('saida', 'emprestimo_saida', 'baixa_reserva')), 0
+                ) as saldo_calculado
+        ");
+        $this->db->bind(':product_id', $product_id);
+        $result = $this->db->single();
+        return $result ? $result->saldo_calculado : 0;
+    }
+
+    public function getAvailableStockItems($product_id){
+        $this->db->query("
+            SELECT * FROM stock_items 
+            WHERE product_id = :product_id AND status = 'em_estoque'
+            ORDER BY id ASC
+        ");
+        $this->db->bind(':product_id', $product_id);
+        return $this->db->resultSet();
+    }
+
+    public function markStockItemAsSold($stock_item_id, $order_id = null){
+        $this->db->beginTransaction();
+        try {
+            // Atualiza o status do item para vendido
+            $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id = :stock_item_id");
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $this->db->execute();
+
+            // Busca informações do item para criar movimentação
+            $this->db->query("SELECT product_id FROM stock_items WHERE id = :stock_item_id");
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $stockItem = $this->db->single();
+
+            if($stockItem){
+                // Cria movimentação de saída
+                $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'saida', 1, 'Venda', :order_id, 'Item vendido')");
+                $this->db->bind(':product_id', $stockItem->product_id);
+                $this->db->bind(':stock_item_id', $stock_item_id);
+                $this->db->bind(':order_id', $order_id);
+                $this->db->execute();
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e){
+            $this->db->rollBack();
+            error_log($e->getMessage());
+            return false;
+        }
+    }
 }
