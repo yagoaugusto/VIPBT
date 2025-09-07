@@ -296,37 +296,56 @@
                 <h5 class="modal-title">Adicionar Fulfillment</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="<?php echo URL_ROOT; ?>/logistics/addFulfillment/<?php echo $order->id; ?>" method="POST">
+            <form id="fulfillmentForm" action="<?php echo URL_ROOT; ?>/logistics/addFulfillment/<?php echo $order->id; ?>" method="POST">
                 <div class="modal-body">
                     <input type="hidden" name="order_id" value="<?php echo $order->id; ?>">
                     
+                    <!-- Alert area for errors -->
+                    <div id="fulfillmentErrors" class="alert alert-danger d-none" role="alert"></div>
+                    
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
-                        <select name="status" id="status" class="form-select" required>
+                        <select name="status" id="fulfillment_status" class="form-select" required>
                             <option value="preparando">Preparando</option>
                             <option value="enviado">Enviado</option>
                             <option value="entregue">Entregue</option>
                         </select>
+                        <div class="invalid-feedback"></div>
                     </div>
 
                     <div class="mb-3">
                         <label for="transportadora" class="form-label">Transportadora</label>
-                        <input type="text" name="transportadora" id="transportadora" class="form-control">
+                        <input type="text" name="transportadora" id="fulfillment_transportadora" class="form-control">
+                        <div class="invalid-feedback"></div>
                     </div>
 
                     <div class="mb-3">
                         <label for="codigo_rastreio" class="form-label">Código de Rastreio</label>
-                        <input type="text" name="codigo_rastreio" id="codigo_rastreio" class="form-control">
+                        <input type="text" name="codigo_rastreio" id="fulfillment_codigo_rastreio" class="form-control">
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <div class="mb-3" id="enviado_em_group" style="display: none;">
+                        <label for="enviado_em" class="form-label">Data de Envio</label>
+                        <input type="datetime-local" name="enviado_em" id="fulfillment_enviado_em" class="form-control">
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <div class="mb-3" id="entregue_em_group" style="display: none;">
+                        <label for="entregue_em" class="form-label">Data de Entrega</label>
+                        <input type="datetime-local" name="entregue_em" id="fulfillment_entregue_em" class="form-control">
+                        <div class="invalid-feedback"></div>
                     </div>
 
                     <div class="mb-3">
                         <label for="observacoes" class="form-label">Observações</label>
-                        <textarea name="observacoes" id="observacoes" class="form-control" rows="3"></textarea>
+                        <textarea name="observacoes" id="fulfillment_observacoes" class="form-control" rows="3"></textarea>
+                        <div class="invalid-feedback"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar Fulfillment</button>
+                    <button type="submit" class="btn btn-primary" id="fulfillmentSubmitBtn">Salvar Fulfillment</button>
                 </div>
             </form>
         </div>
@@ -445,4 +464,130 @@ function updateOrderStatus(orderId, status) {
         });
     }
 }
+
+// Handle fulfillment form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const fulfillmentForm = document.getElementById('fulfillmentForm');
+    const fulfillmentModal = document.getElementById('fulfillmentModal');
+    const statusSelect = document.getElementById('fulfillment_status');
+    const enviadoEmGroup = document.getElementById('enviado_em_group');
+    const entregueEmGroup = document.getElementById('entregue_em_group');
+    
+    // Show/hide date fields based on status
+    statusSelect.addEventListener('change', function() {
+        const status = this.value;
+        
+        if (status === 'enviado') {
+            enviadoEmGroup.style.display = 'block';
+            entregueEmGroup.style.display = 'none';
+        } else if (status === 'entregue') {
+            enviadoEmGroup.style.display = 'block';
+            entregueEmGroup.style.display = 'block';
+        } else {
+            enviadoEmGroup.style.display = 'none';
+            entregueEmGroup.style.display = 'none';
+        }
+    });
+    
+    // Reset form when modal is closed
+    fulfillmentModal.addEventListener('hidden.bs.modal', function() {
+        fulfillmentForm.reset();
+        clearFulfillmentErrors();
+        enviadoEmGroup.style.display = 'none';
+        entregueEmGroup.style.display = 'none';
+    });
+    
+    // Handle form submission
+    fulfillmentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('fulfillmentSubmitBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        // Clear previous errors
+        clearFulfillmentErrors();
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+        
+        // Prepare form data
+        const formData = new FormData(fulfillmentForm);
+        
+        // Send AJAX request
+        fetch(fulfillmentForm.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Success - close modal and reload page
+                const modalInstance = bootstrap.Modal.getInstance(fulfillmentModal);
+                modalInstance.hide();
+                location.reload();
+            } else {
+                // Show errors
+                if (data.errors) {
+                    showFulfillmentErrors(data.errors);
+                } else if (data.message) {
+                    showFulfillmentErrors({ general: data.message });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showFulfillmentErrors({ general: 'Erro de comunicação. Tente novamente.' });
+        })
+        .finally(() => {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+    
+    function clearFulfillmentErrors() {
+        const errorAlert = document.getElementById('fulfillmentErrors');
+        errorAlert.classList.add('d-none');
+        
+        // Clear individual field errors
+        const fields = ['status', 'transportadora', 'codigo_rastreio', 'enviado_em', 'entregue_em', 'observacoes'];
+        fields.forEach(field => {
+            const element = document.getElementById('fulfillment_' + field);
+            if (element) {
+                element.classList.remove('is-invalid');
+                const feedback = element.parentNode.querySelector('.invalid-feedback');
+                if (feedback) feedback.textContent = '';
+            }
+        });
+    }
+    
+    function showFulfillmentErrors(errors) {
+        const errorAlert = document.getElementById('fulfillmentErrors');
+        let errorMessages = [];
+        
+        Object.keys(errors).forEach(field => {
+            if (field === 'general') {
+                errorMessages.push(errors[field]);
+            } else {
+                // Show field-specific error
+                const element = document.getElementById('fulfillment_' + field);
+                if (element) {
+                    element.classList.add('is-invalid');
+                    const feedback = element.parentNode.querySelector('.invalid-feedback');
+                    if (feedback) feedback.textContent = errors[field];
+                }
+                errorMessages.push(errors[field]);
+            }
+        });
+        
+        if (errorMessages.length > 0) {
+            errorAlert.innerHTML = errorMessages.join('<br>');
+            errorAlert.classList.remove('d-none');
+        }
+    }
+});
 </script>

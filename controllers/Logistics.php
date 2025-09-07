@@ -42,7 +42,8 @@ class Logistics extends Controller {
                 'entregue_em' => $_POST['entregue_em'],
                 'observacoes' => trim($_POST['observacoes']),
                 'status_err' => '',
-                'enviado_em_err' => ''
+                'enviado_em_err' => '',
+                'entregue_em_err' => ''
             ];
 
             // Validação
@@ -56,22 +57,62 @@ class Logistics extends Controller {
                 $data['entregue_em_err'] = 'Por favor, insira a data de entrega.';
             }
 
+            // Check if it's an AJAX request (from modal)
+            $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+
             if(empty($data['status_err']) && empty($data['enviado_em_err']) && empty($data['entregue_em_err'])){
                 if($this->fulfillmentModel->addFulfillment($data)){
                     Session::flash('fulfillment_message', 'Registro de expedição adicionado com sucesso!');
-                    header('Location: ' . URL_ROOT . '/orders/show/' . $order_id);
+                    
+                    if($isAjax){
+                        // Return JSON response for AJAX requests
+                        header('Content-Type: application/json');
+                        echo json_encode([
+                            'success' => true,
+                            'message' => 'Registro de expedição adicionado com sucesso!'
+                        ]);
+                        exit();
+                    } else {
+                        // Regular redirect for non-AJAX requests
+                        header('Location: ' . URL_ROOT . '/orders/show/' . $order_id);
+                        exit();
+                    }
                 } else {
-                    die('Algo deu errado ao registrar a expedição.');
+                    if($isAjax){
+                        header('Content-Type: application/json');
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'Algo deu errado ao registrar a expedição.'
+                        ]);
+                        exit();
+                    } else {
+                        die('Algo deu errado ao registrar a expedição.');
+                    }
                 }
             } else {
-                // Recarrega a view com erros
-                $order = $this->orderModel->getOrderById($order_id);
-                $fulfillments = $this->fulfillmentModel->getFulfillmentsByOrderId($order_id);
+                if($isAjax){
+                    // Return validation errors as JSON for AJAX requests
+                    $errors = [];
+                    if(!empty($data['status_err'])) $errors['status'] = $data['status_err'];
+                    if(!empty($data['enviado_em_err'])) $errors['enviado_em'] = $data['enviado_em_err'];
+                    if(!empty($data['entregue_em_err'])) $errors['entregue_em'] = $data['entregue_em_err'];
+                    
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'errors' => $errors
+                    ]);
+                    exit();
+                } else {
+                    // Recarrega a view com erros (for non-AJAX requests)
+                    $order = $this->orderModel->getOrderById($order_id);
+                    $fulfillments = $this->fulfillmentModel->getFulfillmentsByOrderId($order_id);
 
-                $data['order'] = $order;
-                $data['fulfillments'] = $fulfillments;
-                $data['title'] = 'Registrar Expedição para Pedido ' . $order->public_code;
-                $this->view('logistics/addFulfillment', $data);
+                    $data['order'] = $order;
+                    $data['fulfillments'] = $fulfillments;
+                    $data['title'] = 'Registrar Expedição para Pedido ' . $order->public_code;
+                    $this->view('logistics/addFulfillment', $data);
+                }
             }
 
         } else {
