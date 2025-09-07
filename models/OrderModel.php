@@ -236,4 +236,24 @@ class OrderModel {
         $this->db->bind(':public_code', $public_code);
         return $this->db->single();
     }
+
+    public function getOrderCredits($order_id){
+        $this->db->query("SELECT * FROM order_credits WHERE order_id = :order_id ORDER BY created_at ASC");
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->resultSet();
+    }
+
+    public function updateOrderFiscalStatus($order_id, $status){
+        $this->db->query("UPDATE orders SET status_fiscal = :status WHERE id = :order_id");
+        $this->db->bind(':status', $status);
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->execute();
+    }
+
+    public function updateOrderDeliveryStatus($order_id, $status){
+        $this->db->query("UPDATE orders SET status_entrega = :status WHERE id = :order_id");
+        $this->db->bind(':status', $status);
+        $this->db->bind(':order_id', $order_id);
+        return $this->db->execute();
+    }
 }
