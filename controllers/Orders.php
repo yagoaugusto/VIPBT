@@ -36,15 +36,42 @@ class Orders extends Controller {
             $json = file_get_contents('php://input');
             $requestData = json_decode($json, true);
 
+            // Validate JSON decode
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($requestData)) {
+                echo json_encode(['success' => false, 'message' => 'Dados inválidos enviados.']);
+                exit();
+            }
+
+            // Validate required fields
+            if (empty($requestData['customer_id']) || !is_numeric($requestData['customer_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Cliente é obrigatório.']);
+                exit();
+            }
+
+            if (empty($requestData['seller_id']) || !is_numeric($requestData['seller_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Vendedor é obrigatório.']);
+                exit();
+            }
+
+            if (empty($requestData['channel_id']) || !is_numeric($requestData['channel_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Canal de venda é obrigatório.']);
+                exit();
+            }
+
+            if (empty($requestData['items']) || !is_array($requestData['items']) || count($requestData['items']) === 0) {
+                echo json_encode(['success' => false, 'message' => 'Pelo menos um item deve ser adicionado ao pedido.']);
+                exit();
+            }
+
             $data = [
-                'customer_id' => $requestData['customer_id'],
-                'seller_id' => $requestData['seller_id'],
-                'channel_id' => $requestData['channel_id'],
+                'customer_id' => (int)$requestData['customer_id'],
+                'seller_id' => (int)$requestData['seller_id'],
+                'channel_id' => (int)$requestData['channel_id'],
                 'data' => date('Y-m-d'),
-                'observacao' => $requestData['observacao'],
+                'observacao' => $requestData['observacao'] ?? '',
                 'items' => $requestData['items'],
                 'tradeins' => $requestData['tradeins'] ?? [],
-                'total_credits' => $requestData['total_credits'] ?? 0
+                'total_credits' => (float)($requestData['total_credits'] ?? 0)
             ];
 
             try {
