@@ -121,11 +121,37 @@ class OrderModel {
                 }
             }
 
+            // Processa créditos de trade-in
+            if(!empty($data['tradeins'])){
+                require_once __DIR__ . '/TradeInModel.php';
+                $tradeInModel = new TradeInModel();
+                
+                foreach($data['tradeins'] as $tradein){
+                    // Aplica o crédito de trade-in
+                    $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
+                    $this->db->bind(':order_id', $orderId);
+                    $this->db->bind(':descricao', 'Crédito de Trade-in #' . $tradein['id']);
+                    $this->db->bind(':valor', $tradein['credit']);
+                    $this->db->bind(':trade_in_id', $tradein['id']);
+                    $this->db->execute();
+                }
+            }
+
+            // Calcula total final com créditos
+            $totalCredits = $data['total_credits'] ?? 0;
+            $finalTotal = max(0, $orderTotal - $totalCredits);
+
             // Cria o registro de contas a receber
             $this->db->query("INSERT INTO receivables (order_id, valor_total, valor_a_receber) VALUES (:order_id, :valor_total, :valor_a_receber)");
             $this->db->bind(':order_id', $orderId);
             $this->db->bind(':valor_total', $orderTotal);
-            $this->db->bind(':valor_a_receber', $orderTotal);
+            $this->db->bind(':valor_a_receber', $finalTotal);
+            $this->db->execute();
+
+            // Atualiza o total do pedido
+            $this->db->query("UPDATE orders SET total = :total WHERE id = :id");
+            $this->db->bind(':total', $orderTotal);
+            $this->db->bind(':id', $orderId);
             $this->db->execute();
 
             $this->db->commit();

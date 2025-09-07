@@ -42,7 +42,9 @@ class Orders extends Controller {
                 'channel_id' => $requestData['channel_id'],
                 'data' => date('Y-m-d'),
                 'observacao' => $requestData['observacao'],
-                'items' => $requestData['items']
+                'items' => $requestData['items'],
+                'tradeins' => $requestData['tradeins'] ?? [],
+                'total_credits' => $requestData['total_credits'] ?? 0
             ];
 
             try {
