@@ -197,10 +197,6 @@ class LoanModel {
                 throw new Exception('Empréstimo não possui itens');
             }
 
-            // Cria um pedido automaticamente
-            require_once __DIR__ . '/OrderModel.php';
-            $orderModel = new OrderModel();
-
             // Prepara dados do pedido
             $orderData = [
                 'customer_id' => $customer_id,
@@ -233,8 +229,8 @@ class LoanModel {
                 }
             }
 
-            // Cria o pedido
-            $orderId = $orderModel->addOrder($orderData);
+            // Cria o pedido usando um método especializado para conversão de empréstimo
+            $orderId = $this->createOrderFromLoan($orderData, $loanItems);
             if(!$orderId){
                 throw new Exception('Erro ao criar pedido da conversão');
             }
@@ -245,8 +241,19 @@ class LoanModel {
             $this->db->bind(':loan_id', $loan_id);
             $this->db->execute();
 
-            // Marca itens como vendidos (já foi feito no OrderModel)
-            // Não precisa fazer nada extra com os stock_items pois o addOrder já cuida disso
+            // Atualiza status dos itens de empréstimo para vendido
+            foreach($loanItems as $item){
+                $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id = :stock_item_id");
+                $this->db->bind(':stock_item_id', $item->stock_item_id);
+                $this->db->execute();
+
+                // Registra a movimentação de venda
+                $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'saida', 1, 'Venda', :order_id, 'Conversão de empréstimo em venda')");
+                $this->db->bind(':product_id', $this->getProductIdFromStockItem($item->stock_item_id));
+                $this->db->bind(':stock_item_id', $item->stock_item_id);
+                $this->db->bind(':order_id', $orderId);
+                $this->db->execute();
+            }
 
             $this->db->commit();
             return $orderId;
@@ -270,5 +277,73 @@ class LoanModel {
         }
         
         return $result->product_id;
+    }
+
+    // Método especializado para criar pedido a partir de conversão de empréstimo
+    private function createOrderFromLoan($orderData, $loanItems){
+        // Gera código público para o pedido
+        $public_code = $this->generatePublicCode();
+
+        // Cria o pedido principal
+        $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao)");
+        
+        $this->db->bind(':customer_id', $orderData['customer_id']);
+        $this->db->bind(':seller_id', $orderData['seller_id']);
+        $this->db->bind(':channel_id', $orderData['channel_id']);
+        $this->db->bind(':data', $orderData['data']);
+        $this->db->bind(':public_code', $public_code);
+        $this->db->bind(':observacao', $orderData['observacao']);
+        
+        $this->db->execute();
+        $orderId = $this->db->lastInsertId();
+
+        $orderTotal = 0;
+        
+        // Adiciona os itens do pedido baseado nos itens do empréstimo
+        foreach($orderData['items'] as $item){
+            $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
+            $this->db->bind(':order_id', $orderId);
+            $this->db->bind(':product_id', $item['id']);
+            $this->db->bind(':qtd', $item['qtd']);
+            $this->db->bind(':preco_unit', $item['preco']);
+            $this->db->bind(':desconto', $item['desconto']);
+            $this->db->execute();
+            
+            $orderTotal += ($item['preco'] * $item['qtd']) - $item['desconto'];
+        }
+
+        // Cria o registro de contas a receber
+        $this->db->query("INSERT INTO receivables (order_id, valor_total, valor_a_receber) VALUES (:order_id, :valor_total, :valor_a_receber)");
+        $this->db->bind(':order_id', $orderId);
+        $this->db->bind(':valor_total', $orderTotal);
+        $this->db->bind(':valor_a_receber', $orderTotal);
+        $this->db->execute();
+
+        // Atualiza o total do pedido
+        $this->db->query("UPDATE orders SET total = :total WHERE id = :id");
+        $this->db->bind(':total', $orderTotal);
+        $this->db->bind(':id', $orderId);
+        $this->db->execute();
+
+        return $orderId;
+    }
+
+    // Gera código público único para o pedido
+    private function generatePublicCode($length = 8) {
+        do {
+            $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            $charactersLength = strlen($characters);
+            $randomString = '';
+            for ($i = 0; $i < $length; $i++) {
+                $randomString .= $characters[rand(0, $charactersLength - 1)];
+            }
+            $code = 'BT-' . $randomString;
+            
+            $this->db->query("SELECT id FROM orders WHERE public_code = :public_code");
+            $this->db->bind(':public_code', $code);
+            $this->db->execute();
+        } while ($this->db->rowCount() > 0);
+        
+        return $code;
     }
 }
