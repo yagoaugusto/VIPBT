@@ -265,8 +265,8 @@ document.addEventListener('DOMContentLoaded', function() {
             total_credits: totalCredits
         };
         
-        if (!orderData.customer_id || !orderData.seller_id || orderItems.length === 0) {
-            alert('Por favor, preencha o cliente, o vendedor e adicione pelo menos um item.');
+        if (!orderData.customer_id || !orderData.seller_id || !orderData.channel_id || orderItems.length === 0) {
+            alert('Por favor, preencha o cliente, o vendedor, o canal de venda e adicione pelo menos um item.');
             return;
         }
 

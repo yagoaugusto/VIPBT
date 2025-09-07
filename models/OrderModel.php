@@ -110,13 +110,38 @@ class OrderModel {
             $this->db->execute();
             $orderId = $this->db->lastInsertId();
 
+            // Validate that the order was created successfully
+            if (!$orderId) {
+                throw new Exception("Falha ao criar o pedido na base de dados.");
+            }
+
             $orderTotal = 0;
             if(isset($data['items']) && is_array($data['items'])){
+                if (count($data['items']) === 0) {
+                    throw new Exception("O pedido deve conter pelo menos um item.");
+                }
                 // Carrega o modelo de estoque para reduzir o estoque
                 require_once __DIR__ . '/StockModel.php';
                 $stockModel = new StockModel();
                 
-                foreach($data['items'] as $item){
+                foreach($data['items'] as $index => $item){
+                    // Validate item data
+                    if (!isset($item['id']) || !is_numeric($item['id']) || $item['id'] <= 0) {
+                        throw new Exception("Item #" . ($index + 1) . ": ID do produto é obrigatório e deve ser um número válido.");
+                    }
+                    
+                    if (!isset($item['qtd']) || !is_numeric($item['qtd']) || $item['qtd'] <= 0) {
+                        throw new Exception("Item #" . ($index + 1) . ": Quantidade deve ser um número maior que zero.");
+                    }
+                    
+                    if (!isset($item['preco']) || !is_numeric($item['preco']) || $item['preco'] < 0) {
+                        throw new Exception("Item #" . ($index + 1) . ": Preço deve ser um valor numérico válido.");
+                    }
+                    
+                    if (!isset($item['desconto']) || !is_numeric($item['desconto']) || $item['desconto'] < 0) {
+                        throw new Exception("Item #" . ($index + 1) . ": Desconto deve ser um valor numérico válido.");
+                    }
+                    
                     // Verifica disponibilidade antes de processar o item
                     $availableQtd = $stockModel->getProductStockBalance($item['id']);
                     
@@ -154,6 +179,8 @@ class OrderModel {
                         $this->db->execute();
                     }
                 }
+            } else {
+                throw new Exception("O pedido deve conter pelo menos um item.");
             }
 
             // Processa créditos de trade-in
@@ -197,8 +224,8 @@ class OrderModel {
 
         } catch (Exception $e) {
             $this->db->rollBack();
-            error_log($e->getMessage());
-            return false;
+            error_log("OrderModel::addOrder error: " . $e->getMessage());
+            throw $e; // Re-throw the exception so the controller can handle it properly
         }
     }
     
