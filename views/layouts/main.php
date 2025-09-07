@@ -10,6 +10,10 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
 
+<a href="#main-content" class="visually-hidden-focusable btn btn-primary position-absolute top-0 start-0 m-2" style="z-index: 1060;">
+    Pular para o conteúdo principal
+</a>
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-gradient shadow-sm">
     <div class="container">
         <a class="navbar-brand fw-bold" href="<?php echo URL_ROOT; ?>">
@@ -118,7 +122,7 @@
     </div>
 </nav>
 
-<main class="container flex-grow-1 py-4">
+<main id="main-content" class="container flex-grow-1 py-4">
     <?php echo $content; ?>
 </main>
 

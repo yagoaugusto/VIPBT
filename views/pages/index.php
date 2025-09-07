@@ -13,7 +13,7 @@
     </h2>
     
     <div class="quick-access-cards">
-        <?php if(core\Session::isLoggedIn()): ?>
+        <?php if(class_exists('core\\Session') && core\Session::isLoggedIn()): ?>
             <!-- Cadastros -->
             <a href="<?php echo URL_ROOT; ?>/customers" class="quick-access-card animate-fade-in-up">
                 <div class="quick-access-icon">
@@ -48,7 +48,7 @@
                 <p>Acompanhe a posição do seu estoque</p>
             </a>
             
-            <?php if(core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'estoquista' || core\Session::get('user_perfil') == 'financeiro'): ?>
+            <?php if(class_exists('core\\Session') && (core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'estoquista' || core\Session::get('user_perfil') == 'financeiro')): ?>
                 <a href="<?php echo URL_ROOT; ?>/tradeins" class="quick-access-card animate-fade-in-up">
                     <div class="quick-access-icon">
                         <i class="fas fa-exchange-alt"></i>
@@ -58,7 +58,7 @@
                 </a>
             <?php endif; ?>
             
-            <?php if(core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'financeiro'): ?>
+            <?php if(class_exists('core\\Session') && (core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'financeiro')): ?>
                 <a href="<?php echo URL_ROOT; ?>/financial/receivables" class="quick-access-card animate-fade-in-up">
                     <div class="quick-access-icon">
                         <i class="fas fa-money-bill-wave"></i>
@@ -87,7 +87,7 @@
         <?php endif; ?>
     </div>
     
-    <?php if(core\Session::isLoggedIn()): ?>
+    <?php if(class_exists('core\\Session') && core\Session::isLoggedIn()): ?>
         <div class="row">
             <div class="col-md-6 mb-4">
                 <div class="card shadow-soft">
@@ -101,10 +101,10 @@
                             <i class="fas fa-check-circle me-2"></i>Sistema operacional
                         </p>
                         <p class="text-info mb-2">
-                            <i class="fas fa-user me-2"></i>Usuário: <?php echo core\Session::get('user_name'); ?>
+                            <i class="fas fa-user me-2"></i>Usuário: <?php echo class_exists('core\\Session') ? core\Session::get('user_name') : 'Usuário'; ?>
                         </p>
                         <p class="text-primary mb-0">
-                            <i class="fas fa-shield-alt me-2"></i>Perfil: <?php echo ucfirst(core\Session::get('user_perfil')); ?>
+                            <i class="fas fa-shield-alt me-2"></i>Perfil: <?php echo class_exists('core\\Session') ? ucfirst(core\Session::get('user_perfil')) : 'Usuário'; ?>
                         </p>
                     </div>
                 </div>

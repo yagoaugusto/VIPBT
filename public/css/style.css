@@ -303,6 +303,68 @@ footer a:hover {
     .navbar-nav .nav-link {
         margin: 0.25rem 0;
     }
+    
+    .hero-section {
+        padding: 3rem 0;
+        margin: -2rem -15px 2rem -15px;
+    }
+    
+    .navbar {
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+    
+    .quick-access-card {
+        padding: 1.5rem;
+    }
+    
+    .quick-access-icon {
+        font-size: 2.5rem;
+    }
+    
+    footer .row {
+        text-align: center;
+    }
+    
+    footer .col-md-6 {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-title {
+        font-size: 1.75rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .quick-access-title {
+        font-size: 1.5rem;
+    }
+    
+    .quick-access-card h4 {
+        font-size: 1.1rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+}
+
+/* Improved animations for mobile */
+@media (prefers-reduced-motion: no-preference) {
+    .quick-access-card {
+        animation: fadeInUp 0.6s ease forwards;
+    }
+    
+    .quick-access-card:nth-child(1) { animation-delay: 0.1s; }
+    .quick-access-card:nth-child(2) { animation-delay: 0.2s; }
+    .quick-access-card:nth-child(3) { animation-delay: 0.3s; }
+    .quick-access-card:nth-child(4) { animation-delay: 0.4s; }
+    .quick-access-card:nth-child(5) { animation-delay: 0.5s; }
+    .quick-access-card:nth-child(6) { animation-delay: 0.6s; }
 }
 
 /* Utility Classes */
@@ -373,4 +435,47 @@ a:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #228B22;
+}
+
+/* Focus styles for accessibility */
+.btn:focus,
+.nav-link:focus,
+.dropdown-item:focus,
+.quick-access-card:focus {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    footer,
+    .quick-access-section {
+        display: none !important;
+    }
+    
+    .hero-section {
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+    }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-color: #2C2C2C;
+        --dark-color: #F8F9FA;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .quick-access-card {
+        border: 2px solid var(--dark-color);
+    }
+    
+    .navbar {
+        border-bottom: 2px solid var(--secondary-color);
+    }
 }
