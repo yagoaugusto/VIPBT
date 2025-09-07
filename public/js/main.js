@@ -402,6 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                alert('Avaliação de trade-in registrada com sucesso! Aguardando aprovação.');
                 window.location.href = `${urlRoot}/tradeins/show/${data.trade_in_id}`;
             } else {
                 alert('Erro ao registrar o trade-in: ' + (data.message || 'Erro desconhecido'));

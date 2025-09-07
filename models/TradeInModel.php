@@ -14,11 +14,20 @@ class TradeInModel {
             SELECT 
                 ti.*,
                 c.nome as customer_nome,
-                u.nome as avaliador_nome
+                u.nome as avaliador_nome,
+                ua.nome as aprovado_por_nome
             FROM trade_ins ti
             JOIN customers c ON ti.customer_id = c.id
             LEFT JOIN users u ON ti.avaliador_user_id = u.id
-            ORDER BY ti.created_at DESC
+            LEFT JOIN users ua ON ti.aprovado_por_user_id = ua.id
+            ORDER BY 
+                CASE ti.status 
+                    WHEN 'pendente' THEN 1 
+                    WHEN 'aprovado' THEN 2 
+                    WHEN 'reprovado' THEN 3 
+                    WHEN 'creditado' THEN 4 
+                END,
+                ti.created_at DESC
         ");
         return $this->db->resultSet();
     }
@@ -28,10 +37,12 @@ class TradeInModel {
             SELECT 
                 ti.*,
                 c.nome as customer_nome,
-                u.nome as avaliador_nome
+                u.nome as avaliador_nome,
+                ua.nome as aprovado_por_nome
             FROM trade_ins ti
             JOIN customers c ON ti.customer_id = c.id
             LEFT JOIN users u ON ti.avaliador_user_id = u.id
+            LEFT JOIN users ua ON ti.aprovado_por_user_id = ua.id
             WHERE ti.id = :id
         ");
         $this->db->bind(':id', $id);
@@ -90,10 +101,18 @@ class TradeInModel {
         }
     }
 
-    public function updateTradeInStatus($trade_in_id, $status, $stock_item_resultante_id = null){
+    public function updateTradeInStatus($trade_in_id, $status, $stock_item_resultante_id = null, $observacoes = null){
         $this->db->beginTransaction();
         try {
-            $this->db->query("UPDATE trade_ins SET status = :status WHERE id = :id");
+            // Atualiza o status e adiciona observações se fornecidas
+            if($observacoes){
+                $this->db->query("UPDATE trade_ins SET status = :status, observacoes_aprovacao = :observacoes, aprovado_por_user_id = :aprovado_por, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+                $this->db->bind(':observacoes', $observacoes);
+                $this->db->bind(':aprovado_por', \core\Session::get('user_id'));
+            } else {
+                $this->db->query("UPDATE trade_ins SET status = :status, aprovado_por_user_id = :aprovado_por, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+                $this->db->bind(':aprovado_por', \core\Session::get('user_id'));
+            }
             $this->db->bind(':status', $status);
             $this->db->bind(':id', $trade_in_id);
             $this->db->execute();
@@ -121,6 +140,29 @@ class TradeInModel {
         $this->db->bind(':trade_in_id', $trade_in_id); // This is not used in the query, but in the description.
         $this->db->bind(':valor', $valor);
         return $this->db->execute();
+    }
+
+    public function markTradeInAsUsed($trade_in_id){
+        try {
+            $this->db->query("UPDATE trade_ins SET status = 'creditado' WHERE id = :id AND status = 'aprovado'");
+            $this->db->bind(':id', $trade_in_id);
+            return $this->db->execute();
+        } catch (Exception $e){
+            error_log($e->getMessage());
+            return false;
+        }
+    }
+
+    public function getTradeInTotals($trade_in_id){
+        $this->db->query("
+            SELECT 
+                SUM(avaliacao_valor) as total_avaliado,
+                SUM(valor_creditado) as total_creditado
+            FROM trade_in_items 
+            WHERE trade_in_id = :trade_in_id
+        ");
+        $this->db->bind(':trade_in_id', $trade_in_id);
+        return $this->db->single();
     }
 
     public function getApprovedTradeInsByCustomer($customer_id){
