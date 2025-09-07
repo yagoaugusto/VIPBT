@@ -28,20 +28,13 @@
                                 <h6 class="card-title">Status do Pedido</h6>
                                 <span class="badge <?php 
                                     switch($order->status_pedido){
-                                        case 'novo': echo 'bg-primary'; break;
-                                        case 'faturado': echo 'bg-success'; break;
+                                        case 'novo': echo 'bg-secondary'; break;
+                                        case 'confirmado': echo 'bg-primary'; break;
+                                        case 'vendido': echo 'bg-success'; break;
+                                        case 'faturado': echo 'bg-info'; break; // mantém compatibilidade
                                         case 'cancelado': echo 'bg-danger'; break;
                                         default: echo 'bg-secondary';
                                     }
-                                <span class="badge <?php 
-                    switch($order->status_pedido){
-                        case 'novo': echo 'bg-secondary'; break;
-                        case 'confirmado': echo 'bg-primary'; break;
-                        case 'vendido': echo 'bg-success'; break;
-                        case 'faturado': echo 'bg-info'; break; // mantém compatibilidade
-                        case 'cancelado': echo 'bg-danger'; break;
-                        default: echo 'bg-secondary';
-                    }
                 ?>"><?php 
                     switch($order->status_pedido){
                         case 'novo': echo 'Novo'; break;
