@@ -27,25 +27,43 @@ class StockModel {
     public function addStockMovement($data){
         $this->db->beginTransaction();
         try {
+            // Validação dos dados
+            if (empty($data['product_id']) || !is_numeric($data['product_id'])) {
+                throw new Exception('ID do produto é obrigatório e deve ser numérico');
+            }
+            
+            if (empty($data['qtd']) || !is_numeric($data['qtd']) || $data['qtd'] <= 0) {
+                throw new Exception('Quantidade deve ser um número maior que zero');
+            }
+            
+            if (!isset($data['custo']) || !is_numeric($data['custo']) || $data['custo'] < 0) {
+                throw new Exception('Custo deve ser um valor numérico válido');
+            }
+            
+            // Verifica se o produto existe
+            $this->db->query("SELECT id, tipo_condicao FROM products WHERE id = :product_id");
+            $this->db->bind(':product_id', $data['product_id']);
+            $product = $this->db->single();
+            
+            if (!$product) {
+                throw new Exception('Produto não encontrado');
+            }
+            
             // Insere a movimentação de entrada
             $this->db->query("INSERT INTO inventory_moves (product_id, tipo, qtd, ref_origem, observacao) VALUES (:product_id, 'entrada', :qtd, :ref_origem, :observacao)");
             $this->db->bind(':product_id', $data['product_id']);
             $this->db->bind(':qtd', $data['qtd']);
             $this->db->bind(':ref_origem', 'Entrada Manual');
-            $this->db->bind(':observacao', $data['observacao']);
+            $this->db->bind(':observacao', $data['observacao'] ?? '');
             $this->db->execute();
             $moveId = $this->db->lastInsertId();
 
             // Para produtos novos, assumimos que cada entrada gera um item de estoque.
             // A lógica pode ser mais complexa (ex: um único stock_item com quantidade),
             // mas para o controle unitário de seminovos, este modelo é mais flexível.
-            $this->db->query("SELECT tipo_condicao FROM products WHERE id = :product_id");
-            $this->db->bind(':product_id', $data['product_id']);
-            $product = $this->db->single();
-
             if($product->tipo_condicao == 'novo'){
                 for($i = 0; $i < $data['qtd']; $i++){
-                    $this->db->query("INSERT INTO stock_items (product_id, condicao, aquisicao_tipo, aquisicao_custo) VALUES (:product_id, 'novo', 'compra', :custo)");
+                    $this->db->query("INSERT INTO stock_items (product_id, condicao, aquisicao_tipo, aquisicao_custo, status) VALUES (:product_id, 'novo', 'compra', :custo, 'em_estoque')");
                     $this->db->bind(':product_id', $data['product_id']);
                     $this->db->bind(':custo', $data['custo']);
                     $this->db->execute();
@@ -57,8 +75,8 @@ class StockModel {
 
         } catch (Exception $e){
             $this->db->rollBack();
-            error_log($e->getMessage());
-            return false;
+            error_log("Erro em addStockMovement: " . $e->getMessage());
+            throw $e; // Re-throw para que o controlador possa tratar
         }
     }
 
@@ -158,8 +176,26 @@ class StockModel {
             return true;
         } catch (Exception $e){
             $this->db->rollBack();
-            error_log($e->getMessage());
+            error_log("Erro em markStockItemAsSold: " . $e->getMessage());
             return false;
         }
+    }
+
+    // Método auxiliar para verificar disponibilidade de estoque de múltiplos produtos
+    public function checkMultipleProductsAvailability($items){
+        $availability = [];
+        foreach($items as $item){
+            $productId = $item['id'] ?? $item['product_id'];
+            $requestedQtd = $item['qtd'] ?? $item['quantidade'];
+            
+            $availableQtd = $this->getProductStockBalance($productId);
+            $availability[] = [
+                'product_id' => $productId,
+                'requested' => $requestedQtd,
+                'available' => $availableQtd,
+                'sufficient' => $availableQtd >= $requestedQtd
+            ];
+        }
+        return $availability;
     }
 }

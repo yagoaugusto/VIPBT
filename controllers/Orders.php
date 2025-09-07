@@ -45,12 +45,17 @@ class Orders extends Controller {
                 'items' => $requestData['items']
             ];
 
-            $orderId = $this->orderModel->addOrder($data);
+            try {
+                $orderId = $this->orderModel->addOrder($data);
 
-            if($orderId){
-                echo json_encode(['success' => true, 'order_id' => $orderId]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Erro ao criar o pedido.']);
+                if($orderId){
+                    echo json_encode(['success' => true, 'order_id' => $orderId]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Erro ao criar o pedido.']);
+                }
+            } catch (Exception $e) {
+                // Retorna erro específico, especialmente para problemas de estoque
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
             }
             // Impede a renderização da view
             exit();

@@ -44,7 +44,8 @@ class Stock extends Controller {
                 'observacao' => trim($_POST['observacao']),
                 'product_id_err' => '',
                 'qtd_err' => '',
-                'custo_err' => ''
+                'custo_err' => '',
+                'general_err' => ''
             ];
 
             // Validação
@@ -59,11 +60,19 @@ class Stock extends Controller {
             }
 
             if(empty($data['product_id_err']) && empty($data['qtd_err']) && empty($data['custo_err'])){
-                if($this->stockModel->addStockMovement($data)){
-                    core\Session::flash('stock_message', 'Entrada de estoque registrada com sucesso!');
-                    header('Location: ' . URL_ROOT . '/stock');
-                } else {
-                    die('Algo deu errado ao registrar a entrada de estoque.');
+                try {
+                    if($this->stockModel->addStockMovement($data)){
+                        core\Session::flash('stock_message', 'Entrada de estoque registrada com sucesso!');
+                        header('Location: ' . URL_ROOT . '/stock');
+                        exit();
+                    }
+                } catch (Exception $e) {
+                    // Captura erros específicos do modelo
+                    $data['general_err'] = $e->getMessage();
+                    $productModel = $this->model('Product');
+                    $data['products'] = $productModel->getAllProducts();
+                    $data['title'] = 'Entrada de Estoque';
+                    $this->view('stock/add', $data);
                 }
             } else {
                 // Carrega a view com erros
@@ -81,9 +90,39 @@ class Stock extends Controller {
                 'product_id' => '',
                 'qtd' => '',
                 'custo' => '',
-                'observacao' => ''
+                'observacao' => '',
+                'product_id_err' => '',
+                'qtd_err' => '',
+                'custo_err' => '',
+                'general_err' => ''
             ];
             $this->view('stock/add', $data);
         }
+    }
+
+    public function checkAvailability(){
+        // API endpoint para verificar disponibilidade de estoque
+        header('Content-Type: application/json');
+        
+        if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+            echo json_encode(['error' => 'Método não permitido']);
+            exit();
+        }
+        
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+        
+        if(!isset($data['items']) || !is_array($data['items'])){
+            echo json_encode(['error' => 'Items não fornecidos']);
+            exit();
+        }
+        
+        try {
+            $availability = $this->stockModel->checkMultipleProductsAvailability($data['items']);
+            echo json_encode(['success' => true, 'availability' => $availability]);
+        } catch (Exception $e) {
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+        exit();
     }
 }

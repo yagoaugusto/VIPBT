@@ -78,10 +78,18 @@ class OrderModel {
             $orderTotal = 0;
             if(isset($data['items']) && is_array($data['items'])){
                 // Carrega o modelo de estoque para reduzir o estoque
-                require_once '../models/StockModel.php';
+                require_once __DIR__ . '/StockModel.php';
                 $stockModel = new StockModel();
                 
                 foreach($data['items'] as $item){
+                    // Verifica disponibilidade antes de processar o item
+                    $availableQtd = $stockModel->getProductStockBalance($item['id']);
+                    
+                    if($availableQtd < $item['qtd']){
+                        // Se não há estoque suficiente, lança uma exceção
+                        throw new Exception("Estoque insuficiente para o produto ID {$item['id']}. Disponível: {$availableQtd}, Solicitado: {$item['qtd']}");
+                    }
+                    
                     $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
                     $this->db->bind(':order_id', $orderId);
                     $this->db->bind(':product_id', $item['id']);
