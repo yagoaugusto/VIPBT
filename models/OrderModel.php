@@ -134,6 +134,9 @@ class OrderModel {
                     $this->db->bind(':valor', $tradein['credit']);
                     $this->db->bind(':trade_in_id', $tradein['id']);
                     $this->db->execute();
+                    
+                    // Marca o trade-in como creditado/usado
+                    $tradeInModel->markTradeInAsUsed($tradein['id']);
                 }
             }
 

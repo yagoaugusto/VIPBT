@@ -99,11 +99,13 @@ class TradeIns extends Controller {
     public function show($id){
         $tradeIn = $this->tradeInModel->getTradeInById($id);
         $tradeInItems = $this->tradeInModel->getTradeInItems($id);
+        $totals = $this->tradeInModel->getTradeInTotals($id);
 
         $data = [
             'title' => 'Detalhes da Avaliação de Trade-in',
             'tradeIn' => $tradeIn,
-            'tradeInItems' => $tradeInItems
+            'tradeInItems' => $tradeInItems,
+            'totals' => $totals
         ];
         $this->view('tradeins/show', $data);
     }
@@ -121,6 +123,44 @@ class TradeIns extends Controller {
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Erro ao buscar trade-ins']);
         }
+        exit();
+    }
+
+    public function updateStatus($id){
+        if(!Session::isLoggedIn()){
+            header('Location: ' . URL_ROOT . '/users/login');
+            exit();
+        }
+        
+        // Apenas admin e financeiro podem aprovar/reprovar trade-ins
+        if(Session::get('user_perfil') != 'admin' && Session::get('user_perfil') != 'financeiro'){
+            Session::flash('error_message', 'Acesso negado. Apenas administradores e usuários do financeiro podem aprovar/reprovar avaliações.');
+            header('Location: ' . URL_ROOT . '/tradeins/show/' . $id);
+            exit();
+        }
+
+        if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $status = $_POST['status'] ?? '';
+            $observacoes = $_POST['observacoes'] ?? '';
+            
+            // Validação do status
+            $validStatuses = ['aprovado', 'reprovado'];
+            if(!in_array($status, $validStatuses)){
+                Session::flash('error_message', 'Status inválido.');
+                header('Location: ' . URL_ROOT . '/tradeins/show/' . $id);
+                exit();
+            }
+
+            // Atualiza o status do trade-in
+            if($this->tradeInModel->updateTradeInStatus($id, $status, null, $observacoes)){
+                $message = $status == 'aprovado' ? 'Trade-in aprovado com sucesso!' : 'Trade-in reprovado.';
+                Session::flash('success_message', $message);
+            } else {
+                Session::flash('error_message', 'Erro ao atualizar status do trade-in.');
+            }
+        }
+
+        header('Location: ' . URL_ROOT . '/tradeins/show/' . $id);
         exit();
     }
 }
