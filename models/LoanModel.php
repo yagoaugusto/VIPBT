@@ -211,9 +211,12 @@ class LoanModel {
             foreach($loanItems as $item){
                 // Busca informações do produto
                 $this->db->query("
-                    SELECT p.id, p.preco 
+                    SELECT p.id, 
+                           COALESCE(pp.preco, 0) as preco
                     FROM products p 
                     JOIN stock_items si ON p.id = si.product_id 
+                    LEFT JOIN product_prices pp ON pp.product_id = p.id 
+                        AND pp.vigente_desde = (SELECT MAX(vigente_desde) FROM product_prices WHERE product_id = p.id)
                     WHERE si.id = :stock_item_id
                 ");
                 $this->db->bind(':stock_item_id', $item->stock_item_id);
