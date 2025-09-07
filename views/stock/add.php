@@ -3,6 +3,13 @@
         <div class="card card-body bg-light mt-5">
             <h2><?php echo $title; ?></h2>
             <p>Registre uma nova entrada de produtos no estoque.</p>
+            
+            <?php if(!empty($general_err)): ?>
+                <div class="alert alert-danger">
+                    <?php echo $general_err; ?>
+                </div>
+            <?php endif; ?>
+            
             <form action="<?php echo URL_ROOT; ?>/stock/add" method="post">
                 <div class="form-group mb-3">
                     <label for="product_id">Produto: <sup>*</sup></label>
