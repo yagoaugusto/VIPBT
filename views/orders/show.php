@@ -296,7 +296,7 @@
                 <h5 class="modal-title">Adicionar Fulfillment</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="<?php echo URL_ROOT; ?>/logistics/addFulfillment" method="POST">
+            <form action="<?php echo URL_ROOT; ?>/logistics/addFulfillment/<?php echo $order->id; ?>" method="POST">
                 <div class="modal-body">
                     <input type="hidden" name="order_id" value="<?php echo $order->id; ?>">
                     
