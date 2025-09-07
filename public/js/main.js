@@ -463,13 +463,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Renderiza a tabela de itens de empréstimo
     function renderLoanItemsTable() {
+        const noItemsMessage = document.getElementById('no-items-message');
+        
+        if (loanItems.length === 0) {
+            loanItemsTableBody.innerHTML = '';
+            noItemsMessage.style.display = 'block';
+            return;
+        }
+        
+        noItemsMessage.style.display = 'none';
         loanItemsTableBody.innerHTML = '';
+        
         loanItems.forEach((item, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${item.product_display_name}</td>
-                <td>${item.estado_saida || 'N/A'}</td>
-                <td><button type="button" class="btn btn-danger btn-sm remove-loan-item" data-index="${index}">&times;</button></td>
+                <td>
+                    <strong>${item.product_display_name}</strong>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark">${item.estado_saida || 'Não informado'}</span>
+                </td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-loan-item" data-index="${index}" title="Remover item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
             `;
             loanItemsTableBody.appendChild(row);
         });
@@ -494,18 +512,42 @@ document.addEventListener('DOMContentLoaded', function() {
     loanForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        
+        // Validação
+        const customerId = document.getElementById('customer_id').value;
+        const dataSaida = document.getElementById('data_saida').value;
+        
+        if (!customerId) {
+            alert('Por favor, selecione um cliente.');
+            document.getElementById('customer_id').focus();
+            return;
+        }
+        
+        if (!dataSaida) {
+            alert('Por favor, informe a data de saída.');
+            document.getElementById('data_saida').focus();
+            return;
+        }
+        
+        if (loanItems.length === 0) {
+            alert('Por favor, adicione pelo menos um item ao empréstimo.');
+            document.getElementById('stock_item_search').focus();
+            return;
+        }
+
         const loanFormData = {
-            customer_id: document.getElementById('customer_id').value,
-            data_saida: document.getElementById('data_saida').value,
+            customer_id: customerId,
+            data_saida: dataSaida,
             data_prevista_retorno: document.getElementById('data_prevista_retorno').value,
             observacoes: document.getElementById('observacoes').value,
             items: loanItems
         };
 
-        if (!loanFormData.customer_id || !loanFormData.data_saida || loanItems.length === 0) {
-            alert('Por favor, preencha o cliente, a data de saída e adicione pelo menos um item.');
-            return;
-        }
+        // Desabilita o botão e mostra loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
 
         const formData = new FormData();
         for (const key in loanFormData) {
@@ -523,14 +565,22 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Redireciona para a página de detalhes do empréstimo
                 window.location.href = `${urlRoot}/loans/show/${data.loan_id}`;
             } else {
                 alert('Erro ao registrar o empréstimo: ' + (data.message || 'Erro desconhecido'));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Ocorreu um erro de comunicação.');
+            alert('Ocorreu um erro de comunicação. Tente novamente.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         });
     });
+    
+    // Inicializa a interface
+    renderLoanItemsTable();
 });

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Empréstimos - Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .badge { font-size: 0.85em; }
+        .card-header h3 { margin-bottom: 0; }
+        .table-responsive { border-radius: 0.375rem; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">VIP LOJA BT</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">Demo - Sistema de Empréstimos</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <h1>Empréstimos de Teste</h1>
+            </div>
+            <div class="col-md-6 text-end">
+                <a href="#add" class="btn btn-primary" onclick="showAddForm()">
+                    <i class="fas fa-plus"></i> Novo Empréstimo
+                </a>
+            </div>
+        </div>
+
+        <!-- Filtros e estatísticas -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h6 class="card-title mb-1">Ativos</h6>
+                                <h4 class="text-warning">3</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h6 class="card-title mb-1">Devolvidos</h6>
+                                <h4 class="text-success">8</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h6 class="card-title mb-1">Em Atraso</h6>
+                                <h4 class="text-danger">1</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body py-2">
+                                <h6 class="card-title mb-1">Convertidos</h6>
+                                <h4 class="text-primary">5</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" id="search" class="form-control" placeholder="Buscar por cliente ou vendedor...">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="loans-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Vendedor</th>
+                                <th>Data Saída</th>
+                                <th>Prev. Retorno</th>
+                                <th>Status</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-search="joão silva admin">
+                                <td>#001</td>
+                                <td>João Silva</td>
+                                <td>Admin</td>
+                                <td>15/01/2025</td>
+                                <td><span class="text-danger fw-bold">20/01/2025 <i class="fas fa-exclamation-triangle"></i></span></td>
+                                <td><span class="badge bg-warning text-dark">Ativo</span></td>
+                                <td class="text-end">
+                                    <a href="#show" class="btn btn-sm btn-outline-primary" onclick="showLoanDetails(1)">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr data-search="maria santos vendedor1">
+                                <td>#002</td>
+                                <td>Maria Santos</td>
+                                <td>Vendedor1</td>
+                                <td>10/01/2025</td>
+                                <td><span class="badge bg-light text-dark">25/01/2025</span></td>
+                                <td><span class="badge bg-success">Devolvido</span></td>
+                                <td class="text-end">
+                                    <a href="#show" class="btn btn-sm btn-outline-primary" onclick="showLoanDetails(2)">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr data-search="carlos oliveira admin">
+                                <td>#003</td>
+                                <td>Carlos Oliveira</td>
+                                <td>Admin</td>
+                                <td>12/01/2025</td>
+                                <td><span class="badge bg-light text-dark">30/01/2025</span></td>
+                                <td><span class="badge bg-primary">Convertido em Venda</span></td>
+                                <td class="text-end">
+                                    <a href="#show" class="btn btn-sm btn-outline-primary" onclick="showLoanDetails(3)">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Form Modal -->
+        <div class="modal fade" id="addLoanModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Novo Empréstimo de Teste</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="loan-form">
+                            <!-- Cabeçalho do Empréstimo -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2 mb-3">
+                                        <i class="fas fa-user"></i> Dados do Empréstimo
+                                    </h5>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="customer_id" class="form-label">Cliente: <span class="text-danger">*</span></label>
+                                        <select name="customer_id" id="customer_id" class="form-select">
+                                            <option value="">Selecione o cliente</option>
+                                            <option value="1">João Silva</option>
+                                            <option value="2">Maria Santos</option>
+                                            <option value="3">Carlos Oliveira</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="vendedor_display" class="form-label">Vendedor:</label>
+                                        <input type="text" id="vendedor_display" class="form-control" value="Admin Demo" disabled>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="data_saida" class="form-label">Data de Saída: <span class="text-danger">*</span></label>
+                                        <input type="date" name="data_saida" id="data_saida" class="form-control" value="2025-01-20">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="data_prevista_retorno" class="form-label">Data Prevista de Retorno:</label>
+                                        <input type="date" name="data_prevista_retorno" id="data_prevista_retorno" class="form-control">
+                                        <div class="form-text">Data estimada para devolução dos itens</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="observacoes" class="form-label">Observações:</label>
+                                        <textarea name="observacoes" id="observacoes" class="form-control" rows="3" placeholder="Observações adicionais sobre o empréstimo..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Itens do Empréstimo -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2 mb-3">
+                                        <i class="fas fa-box"></i> Itens para Empréstimo
+                                    </h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="stock_item_search" class="form-label">Adicionar Item de Estoque:</label>
+                                    <select id="stock_item_search" class="form-select">
+                                        <option value="">Selecione um item disponível...</option>
+                                        <option value="1" data-product-id="1">Raquete Beach Tennis Pro (SKU: RBT001 | Série: ABC123)</option>
+                                        <option value="2" data-product-id="2">Bola Oficial Tournament (SKU: BOT001 | Série: XYZ456)</option>
+                                        <option value="3" data-product-id="3">Kit Iniciante Complete (SKU: KIC001 | Série: DEF789)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="estado_saida" class="form-label">Estado de Saída:</label>
+                                    <input type="text" id="estado_saida" class="form-control" placeholder="Ex: Novo, Usado, Com marcas" maxlength="255">
+                                    <div class="form-text">Condição do item na saída</div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" id="add-loan-item-btn" class="btn btn-success w-100">
+                                        <i class="fas fa-plus"></i> Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Itens Selecionados</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm" id="loan-items-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Produto (Série)</th>
+                                                            <th>Estado de Saída</th>
+                                                            <th width="80"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <!-- Itens adicionados via JS -->
+                                                    </tbody>
+                                                </table>
+                                                <div id="no-items-message" class="text-center text-muted py-3">
+                                                    Nenhum item adicionado ainda
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="submitLoan()">
+                            <i class="fas fa-save"></i> Registrar Empréstimo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Show Details Modal -->
+        <div class="modal fade" id="showLoanModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Detalhes do Empréstimo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="loan-details">
+                        <!-- Content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let loanItems = [];
+
+        // Funcionalidade de busca
+        document.getElementById('search').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#loans-table tbody tr');
+            
+            rows.forEach(row => {
+                const searchData = row.getAttribute('data-search');
+                if (searchData.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        function showAddForm() {
+            new bootstrap.Modal(document.getElementById('addLoanModal')).show();
+        }
+
+        function showLoanDetails(id) {
+            const details = `
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Empréstimo #${id.toString().padStart(3, '0')}</h4>
+                            <span class="badge fs-6 bg-warning text-dark">Ativo</span>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-user"></i> Informações do Cliente</h6>
+                                <p class="mb-1"><strong>Nome:</strong> João Silva</p>
+                                <p class="mb-0"><strong>Vendedor:</strong> Admin</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-calendar"></i> Datas</h6>
+                                <p class="mb-1">
+                                    <strong>Data Saída:</strong> 
+                                    <span class="badge bg-light text-dark">15/01/2025</span>
+                                </p>
+                                <p class="mb-0">
+                                    <strong>Prev. Retorno:</strong> 
+                                    <span class="badge bg-danger">
+                                        20/01/2025 <i class="fas fa-exclamation-triangle ms-1"></i>
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-sticky-note"></i> Observações</h6>
+                            <p class="mb-0">Cliente deseja testar a raquete por alguns dias antes de decidir a compra.</p>
+                        </div>
+
+                        <h5 class="mt-4 mb-3"><i class="fas fa-box"></i> Itens Emprestados</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Produto (Série)</th>
+                                        <th>Estado Saída</th>
+                                        <th>Estado Retorno</th>
+                                        <th width="200">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <strong>Raquete Beach Tennis Pro</strong><br>
+                                            <small class="text-muted">SKU: RBT001 | Série: ABC123</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">Novo</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">Pendente</span>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" class="form-control" placeholder="Estado de retorno" maxlength="255">
+                                                <button type="button" class="btn btn-success">
+                                                    <i class="fas fa-check"></i> Devolver
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-light rounded">
+                            <h6 class="mb-3"><i class="fas fa-shopping-cart"></i> Converter em Venda</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select class="form-select form-select-sm">
+                                        <option value="">Selecione o Vendedor</option>
+                                        <option value="1">Admin</option>
+                                        <option value="2">Vendedor1</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select form-select-sm">
+                                        <option value="">Selecione o Canal</option>
+                                        <option value="1">Loja Física</option>
+                                        <option value="2">Online</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-shopping-cart"></i> Converter em Venda
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('loan-details').innerHTML = details;
+            new bootstrap.Modal(document.getElementById('showLoanModal')).show();
+        }
+
+        // Add item functionality
+        document.getElementById('add-loan-item-btn').addEventListener('click', function() {
+            const stockItemSearch = document.getElementById('stock_item_search');
+            const selectedOption = stockItemSearch.options[stockItemSearch.selectedIndex];
+            
+            if (!selectedOption.value) {
+                alert('Por favor, selecione um item de estoque.');
+                return;
+            }
+
+            const stockItemId = selectedOption.value;
+            const productDisplayName = selectedOption.textContent;
+            const productId = selectedOption.dataset.productId;
+            const estadoSaida = document.getElementById('estado_saida').value;
+
+            // Verifica se o item já foi adicionado
+            if (loanItems.find(item => item.stock_item_id === stockItemId)) {
+                alert('Este item já foi adicionado ao empréstimo.');
+                return;
+            }
+
+            const item = {
+                stock_item_id: stockItemId,
+                product_id: productId,
+                product_display_name: productDisplayName,
+                estado_saida: estadoSaida
+            };
+
+            loanItems.push(item);
+            renderLoanItemsTable();
+            clearLoanItemForm();
+        });
+
+        function renderLoanItemsTable() {
+            const loanItemsTableBody = document.querySelector('#loan-items-table tbody');
+            const noItemsMessage = document.getElementById('no-items-message');
+            
+            if (loanItems.length === 0) {
+                loanItemsTableBody.innerHTML = '';
+                noItemsMessage.style.display = 'block';
+                return;
+            }
+            
+            noItemsMessage.style.display = 'none';
+            loanItemsTableBody.innerHTML = '';
+            
+            loanItems.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong>${item.product_display_name}</strong>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">${item.estado_saida || 'Não informado'}</span>
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-loan-item" data-index="${index}" title="Remover item">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                `;
+                loanItemsTableBody.appendChild(row);
+            });
+        }
+
+        function clearLoanItemForm() {
+            document.getElementById('stock_item_search').value = '';
+            document.getElementById('estado_saida').value = '';
+        }
+
+        // Remove item functionality
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-loan-item')) {
+                const index = e.target.closest('.remove-loan-item').dataset.index;
+                loanItems.splice(index, 1);
+                renderLoanItemsTable();
+            }
+        });
+
+        function submitLoan() {
+            alert('Demo: Empréstimo registrado com sucesso! (Funcionalidade simulada)');
+            bootstrap.Modal.getInstance(document.getElementById('addLoanModal')).hide();
+        }
+
+        // Initialize
+        renderLoanItemsTable();
+    </script>
+</body>
+</html>
