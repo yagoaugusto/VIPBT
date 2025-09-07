@@ -11,7 +11,7 @@ class Pages extends Controller {
         // Dados a serem passados para a view
         $data = [
             'title' => 'Bem-vindo à VIP LOJA BT',
-            'description' => 'A estrutura base do seu sistema está funcionando.'
+            'description' => 'Sua plataforma completa para gestão de Beach Tennis. Acesse rapidamente todas as funcionalidades do sistema.'
         ];
 
         // Carrega a view da página inicial passando os dados
@@ -20,8 +20,8 @@ class Pages extends Controller {
 
     public function about(){
         $data = [
-            'title' => 'Sobre Nós',
-            'description' => 'Página sobre a loja.'
+            'title' => 'Sobre a VIP LOJA BT',
+            'description' => 'Somos especializados em Beach Tennis, oferecendo os melhores produtos e serviços para este esporte em crescimento.'
         ];
 
         $this->view('pages/about', $data);
