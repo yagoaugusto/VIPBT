@@ -13,15 +13,32 @@ class OrderModel {
         $this->db->query("
             SELECT 
                 orders.*, 
-                customers.nome as customer_nome, 
-                u.nome as seller_nome
+                c.nome as customer_nome, 
+                u.nome as seller_nome,
+                ch.nome as channel_nome
             FROM orders
-            LEFT JOIN customers ON orders.customer_id = customers.id
-            LEFT JOIN sellers ON orders.seller_id = sellers.id
-            LEFT JOIN users u ON sellers.user_id = u.id
+            LEFT JOIN customers c ON orders.customer_id = c.id
+            LEFT JOIN sellers s ON orders.seller_id = s.id
+            LEFT JOIN users u ON s.user_id = u.id
+            LEFT JOIN channels ch ON orders.channel_id = ch.id
             ORDER BY orders.data DESC, orders.id DESC
         ");
-        return $this->db->resultSet();
+        $orders = $this->db->resultSet();
+        
+        // Adiciona valores padrão para dados faltantes
+        foreach ($orders as $order) {
+            if (!$order->customer_nome) {
+                $order->customer_nome = 'Cliente não encontrado';
+            }
+            if (!$order->seller_nome) {
+                $order->seller_nome = 'Vendedor não encontrado';
+            }
+            if (!$order->channel_nome) {
+                $order->channel_nome = 'Canal não encontrado';
+            }
+        }
+        
+        return $orders;
     }
 
     public function getOrderById($id){
@@ -248,14 +265,32 @@ class OrderModel {
                 u.nome as seller_nome,
                 ch.nome as channel_nome
             FROM orders
-            JOIN customers c ON orders.customer_id = c.id
-            JOIN sellers s ON orders.seller_id = s.id
-            JOIN users u ON s.user_id = u.id
-            JOIN channels ch ON orders.channel_id = ch.id
+            LEFT JOIN customers c ON orders.customer_id = c.id
+            LEFT JOIN sellers s ON orders.seller_id = s.id
+            LEFT JOIN users u ON s.user_id = u.id
+            LEFT JOIN channels ch ON orders.channel_id = ch.id
             WHERE orders.public_code = :public_code
         ");
         $this->db->bind(':public_code', $public_code);
-        return $this->db->single();
+        $result = $this->db->single();
+        
+        // Se não encontrou o pedido, retorna null
+        if (!$result) {
+            return null;
+        }
+        
+        // Verifica se há dados relacionados faltando e define valores padrão
+        if (!$result->customer_nome) {
+            $result->customer_nome = 'Cliente não encontrado';
+        }
+        if (!$result->seller_nome) {
+            $result->seller_nome = 'Vendedor não encontrado';
+        }
+        if (!$result->channel_nome) {
+            $result->channel_nome = 'Canal não encontrado';
+        }
+        
+        return $result;
     }
 
     public function getOrderCredits($order_id){

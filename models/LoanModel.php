@@ -285,7 +285,7 @@ class LoanModel {
         $public_code = $this->generatePublicCode();
 
         // Cria o pedido principal
-        $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao)");
+        $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao, status_pedido, status_fiscal, status_entrega) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao, 'novo', 'nao_faturado', 'nao_entregue')");
         
         $this->db->bind(':customer_id', $orderData['customer_id']);
         $this->db->bind(':seller_id', $orderData['seller_id']);
