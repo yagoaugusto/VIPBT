@@ -18,6 +18,15 @@ class Stock extends Controller {
         $this->view('stock/index', $data);
     }
 
+    public function balances(){
+        $stockBalances = $this->stockModel->getStockBalances();
+        $data = [
+            'title' => 'Saldos de Estoque',
+            'stockBalances' => $stockBalances
+        ];
+        $this->view('stock/balances', $data);
+    }
+
     public function add(){
         // Apenas para usuários logados
         if(!core\Session::isLoggedIn()){
