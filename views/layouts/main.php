@@ -47,6 +47,8 @@
                             <?php if(core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'estoquista'): ?>
                                 <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/loans">Empréstimos de Teste</a></li>
                                 <li><hr class="dropdown-divider"></li>
+                            <?php endif; ?>
+                            <?php if(core\Session::get('user_perfil') == 'admin' || core\Session::get('user_perfil') == 'estoquista' || core\Session::get('user_perfil') == 'financeiro'): ?>
                                 <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/tradeins">Avaliações de Trade-in</a></li>
                             <?php endif; ?>
                         </ul>
