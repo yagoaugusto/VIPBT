@@ -4,9 +4,13 @@ use core\Controller;
 
 class PublicOrders extends Controller {
     private $orderModel;
+    private $fulfillmentModel;
+    private $paymentModel;
 
     public function __construct(){
         $this->orderModel = $this->model('OrderModel');
+        $this->fulfillmentModel = $this->model('FulfillmentModel');
+        $this->paymentModel = $this->model('PaymentModel');
     }
 
     // Página de consulta pública - não requer autenticação
@@ -41,14 +45,10 @@ class PublicOrders extends Controller {
                     $data['order_items'] = $this->orderModel->getOrderItems($order->id);
                     
                     // Carrega informações de fulfillment
-                    require_once __DIR__ . '/../models/FulfillmentModel.php';
-                    $fulfillmentModel = new FulfillmentModel();
-                    $data['fulfillment'] = $fulfillmentModel->getFulfillmentByOrderId($order->id);
+                    $data['fulfillment'] = $this->fulfillmentModel->getFulfillmentByOrderId($order->id);
                     
                     // Carrega informações de pagamentos
-                    require_once __DIR__ . '/../models/PaymentModel.php';
-                    $paymentModel = new PaymentModel();
-                    $data['payments'] = $paymentModel->getPaymentsByOrderId($order->id);
+                    $data['payments'] = $this->paymentModel->getPaymentsByOrderId($order->id);
                     
                     // Gera timeline do pedido
                     $data['timeline'] = $this->generateOrderTimeline($order, $data['fulfillment'], $data['payments']);
@@ -58,7 +58,7 @@ class PublicOrders extends Controller {
                 }
             } catch (Exception $e) {
                 $data['error'] = 'Erro ao consultar pedido. Tente novamente.';
-                error_log("Error in consultation: " . $e->getMessage());
+                error_log("Error in PublicOrders consultation: " . $e->getMessage());
             }
         }
 

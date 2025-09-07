@@ -24,14 +24,18 @@ class FulfillmentModel {
     public function addFulfillment($data){
         $this->db->beginTransaction();
         try {
+            // Prepare datetime fields - convert empty strings to NULL
+            $enviado_em = empty($data['enviado_em']) ? null : $data['enviado_em'];
+            $entregue_em = empty($data['entregue_em']) ? null : $data['entregue_em'];
+            
             // Insere o registro de fulfillment
             $this->db->query("INSERT INTO fulfillments (order_id, status, transportadora, codigo_rastreio, enviado_em, entregue_em, observacoes) VALUES (:order_id, :status, :transportadora, :codigo_rastreio, :enviado_em, :entregue_em, :observacoes)");
             $this->db->bind(':order_id', $data['order_id']);
             $this->db->bind(':status', $data['status']);
             $this->db->bind(':transportadora', $data['transportadora']);
             $this->db->bind(':codigo_rastreio', $data['codigo_rastreio']);
-            $this->db->bind(':enviado_em', $data['enviado_em']);
-            $this->db->bind(':entregue_em', $data['entregue_em']);
+            $this->db->bind(':enviado_em', $enviado_em);
+            $this->db->bind(':entregue_em', $entregue_em);
             $this->db->bind(':observacoes', $data['observacoes']);
             $this->db->execute();
 
@@ -45,7 +49,7 @@ class FulfillmentModel {
             return true;
         } catch (Exception $e){
             $this->db->rollBack();
-            error_log($e->getMessage());
+            error_log("FulfillmentModel Error: " . $e->getMessage());
             return false;
         }
     }

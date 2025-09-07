@@ -1,0 +1,11 @@
+[Sun Sep  7 16:27:12 2025] PHP 8.3.6 Development Server (http://localhost:8000) started
+[Sun Sep  7 16:27:13 2025] [::1]:48078 Accepted
+[Sun Sep  7 16:27:13 2025] [::1]:48078 [200]: HEAD /demo_corrections.html
+[Sun Sep  7 16:27:13 2025] [::1]:48078 Closing
+[Sun Sep  7 16:27:20 2025] [::1]:52298 Accepted
+[Sun Sep  7 16:27:20 2025] [::1]:52302 Accepted
+[Sun Sep  7 16:27:20 2025] [::1]:52298 [200]: GET /demo_corrections.html
+[Sun Sep  7 16:27:20 2025] [::1]:52298 Closing
+[Sun Sep  7 16:28:12 2025] [::1]:41066 Accepted
+[Sun Sep  7 16:28:12 2025] [::1]:52302 [200]: GET /demo_public_consultation.html
+[Sun Sep  7 16:28:12 2025] [::1]:52302 Closing
