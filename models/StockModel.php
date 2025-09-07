@@ -176,8 +176,26 @@ class StockModel {
             return true;
         } catch (Exception $e){
             $this->db->rollBack();
-            error_log($e->getMessage());
+            error_log("Erro em markStockItemAsSold: " . $e->getMessage());
             return false;
         }
+    }
+
+    // Método auxiliar para verificar disponibilidade de estoque de múltiplos produtos
+    public function checkMultipleProductsAvailability($items){
+        $availability = [];
+        foreach($items as $item){
+            $productId = $item['id'] ?? $item['product_id'];
+            $requestedQtd = $item['qtd'] ?? $item['quantidade'];
+            
+            $availableQtd = $this->getProductStockBalance($productId);
+            $availability[] = [
+                'product_id' => $productId,
+                'requested' => $requestedQtd,
+                'available' => $availableQtd,
+                'sufficient' => $availableQtd >= $requestedQtd
+            ];
+        }
+        return $availability;
     }
 }

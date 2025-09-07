@@ -99,4 +99,30 @@ class Stock extends Controller {
             $this->view('stock/add', $data);
         }
     }
+
+    public function checkAvailability(){
+        // API endpoint para verificar disponibilidade de estoque
+        header('Content-Type: application/json');
+        
+        if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+            echo json_encode(['error' => 'Método não permitido']);
+            exit();
+        }
+        
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+        
+        if(!isset($data['items']) || !is_array($data['items'])){
+            echo json_encode(['error' => 'Items não fornecidos']);
+            exit();
+        }
+        
+        try {
+            $availability = $this->stockModel->checkMultipleProductsAvailability($data['items']);
+            echo json_encode(['success' => true, 'availability' => $availability]);
+        } catch (Exception $e) {
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+        exit();
+    }
 }
