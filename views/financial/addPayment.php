@@ -32,8 +32,6 @@
                 <div class="form-group mb-3">
                     <label for="status_pagamento">Status do Pagamento:</label>
                     <select name="status_pagamento" class="form-select">
-                        <option value="pendente" <?php echo ($status_pagamento == 'pendente') ? 'selected' : ''; ?>>Pendente</option>
-                        <option value="parcial" <?php echo ($status_pagamento == 'parcial') ? 'selected' : ''; ?>>Parcial</option>
                         <option value="pago" <?php echo ($status_pagamento == 'pago') ? 'selected' : ''; ?>>Pago</option>
                     </select>
                 </div>
