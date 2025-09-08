@@ -135,10 +135,11 @@ class TradeInModel {
     }
 
     public function addOrderCredit($order_id, $trade_in_id, $valor){
-        $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor) VALUES (:order_id, 'trade_in', 'Crédito de Trade-in #{$trade_in_id}', :valor)");
+        $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
         $this->db->bind(':order_id', $order_id);
-        $this->db->bind(':trade_in_id', $trade_in_id); // This is not used in the query, but in the description.
+        $this->db->bind(':descricao', 'Crédito de Trade-in #' . $trade_in_id);
         $this->db->bind(':valor', $valor);
+        $this->db->bind(':trade_in_id', $trade_in_id);
         return $this->db->execute();
     }
 
