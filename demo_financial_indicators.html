@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicadores Financeiros - VIP LOJA BT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .border-left-primary {
+            border-left: 0.25rem solid #4e73df !important;
+        }
+        .border-left-success {
+            border-left: 0.25rem solid #1cc88a !important;
+        }
+        .border-left-info {
+            border-left: 0.25rem solid #36b9cc !important;
+        }
+        .border-left-warning {
+            border-left: 0.25rem solid #f6c23e !important;
+        }
+        .text-xs {
+            font-size: 0.7rem;
+        }
+        .shadow {
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+        }
+        .bg-gradient {
+            background: linear-gradient(90deg, #4e73df, #1cc88a);
+        }
+        .text-white {
+            color: white !important;
+        }
+        .navbar-dark .navbar-brand {
+            color: white;
+        }
+        .navbar-dark .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .navbar-dark .navbar-nav .nav-link:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-gradient shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">
+            <i class="fas fa-tennis-ball me-2"></i>VIP LOJA BT
+        </a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-home me-1"></i>Home
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarFinanceiro" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-chart-line me-1"></i>Financeiro
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarFinanceiro">
+                        <li><a class="dropdown-item" href="#" style="background-color: #e3f2fd;">
+                            <i class="fas fa-chart-bar me-2"></i>Indicadores
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#">
+                            <i class="fas fa-money-bill-wave me-2"></i>Contas a Receber
+                        </a></li>
+                        <li><a class="dropdown-item" href="#">
+                            <i class="fas fa-percentage me-2"></i>Comissões
+                        </a></li>
+                    </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button">
+                        <i class="fas fa-user me-1"></i>Olá, Admin
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container flex-grow-1 py-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1><i class="fas fa-chart-bar me-2"></i>Indicadores Financeiros</h1>
+            <p class="text-muted">Acompanhe os principais indicadores financeiros e de negócio do seu sistema</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="#" class="btn btn-outline-primary me-2">
+                <i class="fas fa-money-bill-wave"></i> Contas a Receber
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros de Período</h5>
+        </div>
+        <div class="card-body">
+            <form class="row g-3">
+                <div class="col-md-4">
+                    <label for="start_date" class="form-label">Data Início</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="2024-01-01">
+                </div>
+                <div class="col-md-4">
+                    <label for="end_date" class="form-label">Data Fim</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="2024-12-31">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="#" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Limpar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total de Pedidos</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">1,247</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Vendas Confirmadas</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">987</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Valor Recebido</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ 485.672,30</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-hand-holding-usd fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Valor a Receber</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ 87.523,45</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Receita por Mês</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="monthlyRevenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Métodos de Pagamento</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="paymentMethodChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Tables Row -->
+    <div class="row">
+        <!-- Produtos Mais Vendidos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-trophy me-2"></i>Produtos Mais Vendidos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Posição</th>
+                                    <th>Produto</th>
+                                    <th>Qtd Vendida</th>
+                                    <th>Valor Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="fas fa-medal text-warning"></i></td>
+                                    <td>
+                                        <strong>Raquete Head Graphene Touch</strong><br>
+                                        <small class="text-muted">SKU: HGT001</small>
+                                    </td>
+                                    <td><span class="badge bg-primary">127</span></td>
+                                    <td class="text-success">R$ 78.450,00</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-medal text-secondary"></i></td>
+                                    <td>
+                                        <strong>Bola Wilson Pro Core</strong><br>
+                                        <small class="text-muted">SKU: WPC003</small>
+                                    </td>
+                                    <td><span class="badge bg-primary">98</span></td>
+                                    <td class="text-success">R$ 23.520,00</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-medal text-dark"></i></td>
+                                    <td>
+                                        <strong>Tênis Adidas Court</strong><br>
+                                        <small class="text-muted">SKU: ADC125</small>
+                                    </td>
+                                    <td><span class="badge bg-primary">76</span></td>
+                                    <td class="text-success">R$ 45.600,00</td>
+                                </tr>
+                                <tr>
+                                    <td>4°</td>
+                                    <td>
+                                        <strong>Overgrip Wilson</strong><br>
+                                        <small class="text-muted">SKU: WOG042</small>
+                                    </td>
+                                    <td><span class="badge bg-primary">145</span></td>
+                                    <td class="text-success">R$ 8.700,00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Clientes por Compras -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user-tie me-2"></i>Top Clientes por Compras
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Pedidos</th>
+                                    <th>Total Gasto</th>
+                                    <th>Ticket Médio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <strong>João da Silva</strong><br>
+                                        <small class="text-muted">(11) 99999-1111</small>
+                                    </td>
+                                    <td><span class="badge bg-info">12</span></td>
+                                    <td class="text-success">R$ 15.670,00</td>
+                                    <td class="text-secondary">R$ 1.305,83</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Maria Santos</strong><br>
+                                        <small class="text-muted">(11) 88888-2222</small>
+                                    </td>
+                                    <td><span class="badge bg-info">8</span></td>
+                                    <td class="text-success">R$ 12.340,00</td>
+                                    <td class="text-secondary">R$ 1.542,50</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Pedro Oliveira</strong><br>
+                                        <small class="text-muted">(11) 77777-3333</small>
+                                    </td>
+                                    <td><span class="badge bg-info">15</span></td>
+                                    <td class="text-success">R$ 9.875,00</td>
+                                    <td class="text-secondary">R$ 658,33</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Ana Costa</strong><br>
+                                        <small class="text-muted">(11) 66666-4444</small>
+                                    </td>
+                                    <td><span class="badge bg-info">6</span></td>
+                                    <td class="text-success">R$ 8.950,00</td>
+                                    <td class="text-secondary">R$ 1.491,67</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Clientes por Empréstimos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-handshake me-2"></i>Top Clientes por Empréstimos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Empréstimos</th>
+                                    <th>Itens</th>
+                                    <th>Convertidos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <strong>Carlos Mendes</strong><br>
+                                        <small class="text-muted">(11) 55555-5555</small>
+                                    </td>
+                                    <td><span class="badge bg-warning">8</span></td>
+                                    <td><span class="badge bg-secondary">12</span></td>
+                                    <td><span class="badge bg-success">3</span></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Fernanda Lima</strong><br>
+                                        <small class="text-muted">(11) 44444-6666</small>
+                                    </td>
+                                    <td><span class="badge bg-warning">6</span></td>
+                                    <td><span class="badge bg-secondary">8</span></td>
+                                    <td><span class="badge bg-success">4</span></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Roberto Silva</strong><br>
+                                        <small class="text-muted">(11) 33333-7777</small>
+                                    </td>
+                                    <td><span class="badge bg-warning">5</span></td>
+                                    <td><span class="badge bg-secondary">7</span></td>
+                                    <td><span class="badge bg-success">2</span></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Luiza Ferreira</strong><br>
+                                        <small class="text-muted">(11) 22222-8888</small>
+                                    </td>
+                                    <td><span class="badge bg-warning">4</span></td>
+                                    <td><span class="badge bg-secondary">6</span></td>
+                                    <td><span class="badge bg-success">1</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estatísticas por Canal -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-line me-2"></i>Performance por Canal de Venda
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Canal</th>
+                                    <th>Pedidos</th>
+                                    <th>Vendas</th>
+                                    <th>Receita</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Instagram</strong></td>
+                                    <td><span class="badge bg-primary">456</span></td>
+                                    <td><span class="badge bg-success">398</span></td>
+                                    <td class="text-success">R$ 198.765,00</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>WhatsApp</strong></td>
+                                    <td><span class="badge bg-primary">342</span></td>
+                                    <td><span class="badge bg-success">289</span></td>
+                                    <td class="text-success">R$ 145.230,00</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Loja Física</strong></td>
+                                    <td><span class="badge bg-primary">267</span></td>
+                                    <td><span class="badge bg-success">234</span></td>
+                                    <td class="text-success">R$ 98.450,00</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tráfego Pago</strong></td>
+                                    <td><span class="badge bg-primary">182</span></td>
+                                    <td><span class="badge bg-success">66</span></td>
+                                    <td class="text-success">R$ 43.227,30</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-gradient text-white py-4 mt-auto">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="mb-3">
+                    <i class="fas fa-tennis-ball me-2"></i>VIP LOJA BT
+                </h5>
+                <p class="mb-2">Sua loja especializada em Beach Tennis</p>
+                <p class="mb-0">&copy; 2024 - Todos os direitos reservados</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h6 class="mb-3">Contato</h6>
+                <p class="mb-1">
+                    <i class="fas fa-envelope me-2"></i>contato@viplojabt.com
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-phone me-2"></i>(11) 99999-9999
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Monthly Revenue Chart
+const monthLabels = ['Jan/24', 'Fev/24', 'Mar/24', 'Abr/24', 'Mai/24', 'Jun/24', 'Jul/24', 'Ago/24', 'Set/24', 'Out/24', 'Nov/24', 'Dez/24'];
+const revenueValues = [25000, 32000, 28000, 45000, 52000, 48000, 55000, 62000, 58000, 67000, 72000, 68000];
+
+const ctx1 = document.getElementById('monthlyRevenueChart').getContext('2d');
+new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: monthLabels,
+        datasets: [{
+            label: 'Receita (R$)',
+            data: revenueValues,
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'R$ ' + value.toLocaleString('pt-BR');
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return 'Receita: R$ ' + context.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Payment Method Chart
+const paymentLabels = ['PIX', 'Cartão', 'Dinheiro', 'Transferência', 'Outros'];
+const paymentValues = [185000, 150000, 87000, 45000, 18000];
+
+const ctx2 = document.getElementById('paymentMethodChart').getContext('2d');
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: paymentLabels,
+        datasets: [{
+            data: paymentValues,
+            backgroundColor: [
+                '#4e73df',
+                '#1cc88a', 
+                '#36b9cc',
+                '#f6c23e',
+                '#e74a3b'
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 15
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                        return context.label + ': R$ ' + context.parsed.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + ' (' + percentage + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>

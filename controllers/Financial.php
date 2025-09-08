@@ -8,6 +8,7 @@ class Financial extends Controller {
     private $receivableModel;
     private $commissionModel;
     private $orderModel;
+    private $financialIndicatorsModel;
 
     public function __construct(){
         // Apenas para usuários logados
@@ -26,6 +27,39 @@ class Financial extends Controller {
         $this->receivableModel = $this->model('ReceivableModel');
         $this->commissionModel = $this->model('CommissionModel');
         $this->orderModel = $this->model('OrderModel');
+        $this->financialIndicatorsModel = $this->model('FinancialIndicatorsModel');
+    }
+
+    public function indicators(){
+        // Get filter parameters
+        $start_date = $_GET['start_date'] ?? null;
+        $end_date = $_GET['end_date'] ?? null;
+        
+        // Get dashboard data
+        $overview = $this->financialIndicatorsModel->getFinancialOverview($start_date, $end_date);
+        $mostSoldProducts = $this->financialIndicatorsModel->getMostSoldProducts($start_date, $end_date, 10);
+        $topCustomersByPurchases = $this->financialIndicatorsModel->getTopCustomersByPurchases($start_date, $end_date, 10);
+        $topCustomersByLoans = $this->financialIndicatorsModel->getTopCustomersByLoans($start_date, $end_date, 10);
+        $salesChannelStats = $this->financialIndicatorsModel->getSalesChannelStats($start_date, $end_date);
+        $paymentMethodStats = $this->financialIndicatorsModel->getPaymentMethodStats($start_date, $end_date);
+        $monthlyRevenueData = $this->financialIndicatorsModel->getMonthlyRevenueData($start_date, $end_date);
+
+        $data = [
+            'title' => 'Indicadores Financeiros',
+            'overview' => $overview,
+            'most_sold_products' => $mostSoldProducts,
+            'top_customers_by_purchases' => $topCustomersByPurchases,
+            'top_customers_by_loans' => $topCustomersByLoans,
+            'sales_channel_stats' => $salesChannelStats,
+            'payment_method_stats' => $paymentMethodStats,
+            'monthly_revenue_data' => $monthlyRevenueData,
+            'filters' => [
+                'start_date' => $start_date,
+                'end_date' => $end_date
+            ]
+        ];
+
+        $this->view('financial/indicators', $data);
     }
 
     public function receivables(){
