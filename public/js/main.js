@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const urlRoot = orderForm.dataset.urlRoot;
-    const productSearch = document.getElementById('product_search');
+    const stockItemSearch = document.getElementById('stock_item_search');
     const addItemBtn = document.getElementById('add-item-btn');
     const itemsTableBody = document.querySelector('#order-items-table tbody');
     const orderTotalEl = document.getElementById('order-total');
@@ -29,30 +29,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Adicionar item ao pedido
     addItemBtn.addEventListener('click', function() {
-        const selectedOption = productSearch.options[productSearch.selectedIndex];
-        if (!selectedOption.value) {
+        const typed = (stockItemSearch.value || '').trim();
+        if (!typed) {
             return;
         }
 
-        const productId = selectedOption.value;
-        const productName = selectedOption.text.split(' (R$')[0];
-        const productPrice = parseFloat(selectedOption.dataset.price);
+        // Resolve item pelo label digitado
+        const items = (window.availableStockItems || []);
+        const match = items.find(x => x.label === typed);
+        if (!match) {
+            alert('Selecione um item válido da lista.');
+            return;
+        }
 
-        if (orderItems.find(item => item.id === productId)) {
-            alert('Este produto já foi adicionado.');
+        const stockItemId = String(match.stock_item_id);
+        const productId = String(match.product_id);
+        const productName = match.label;
+        const productPrice = parseFloat(match.price) || 0;
+
+        if (orderItems.find(item => item.stock_item_id === stockItemId)) {
+            alert('Este item já foi adicionado.');
             return;
         }
 
         const item = {
             id: productId,
+            stock_item_id: stockItemId,
             name: productName,
             price: productPrice,
             quantity: 1,
             discount: 0
         };
 
-        orderItems.push(item);
+    orderItems.push(item);
         renderItemsTable();
+    stockItemSearch.value = '';
     });
 
     // Renderiza a tabela de itens
@@ -67,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${item.name}</td>
-                <td><input type="number" class="form-control item-qty" data-index="${index}" value="${item.quantity}" min="1" step="1"></td>
+                <td><input type="number" class="form-control item-qty" data-index="${index}" value="${item.quantity}" min="1" step="1" ${item.stock_item_id ? 'max="1"' : ''}></td>
                 <td><input type="number" class="form-control item-price" data-index="${index}" value="${item.price.toFixed(2)}" step="0.01"></td>
                 <td><input type="number" class="form-control item-discount" data-index="${index}" value="${item.discount.toFixed(2)}" step="0.01" min="0"></td>
                 <td class="subtotal">R$ ${subtotal.toFixed(2)}</td>
@@ -76,11 +87,14 @@ document.addEventListener('DOMContentLoaded', function() {
             itemsTableBody.appendChild(row);
         });
 
-        updateOrderTotals();
+    updateOrderTotals();
     }
 
     // Atualiza os totais do pedido
     function updateOrderTotals() {
+        // Recalcula subtotal com base no estado atual (evita depender do último render)
+        const subtotalSum = orderItems.reduce((sum, it) => sum + ((it.price * it.quantity) - it.discount), 0);
+        orderSubtotal = subtotalSum;
         orderSubtotalEl.textContent = `R$ ${orderSubtotal.toFixed(2)}`;
         orderCreditsEl.textContent = `- R$ ${totalCredits.toFixed(2)}`;
         
@@ -99,15 +113,30 @@ document.addEventListener('DOMContentLoaded', function() {
     itemsTableBody.addEventListener('input', function(e) {
         if (e.target.classList.contains('item-qty') || e.target.classList.contains('item-price') || e.target.classList.contains('item-discount')) {
             const index = e.target.dataset.index;
-            const newQty = parseFloat(document.querySelector(`.item-qty[data-index="${index}"]`).value) || 1;
-            const newPrice = parseFloat(document.querySelector(`.item-price[data-index="${index}"]`).value) || 0;
-            const newDiscount = parseFloat(document.querySelector(`.item-discount[data-index="${index}"]`).value) || 0;
-            
+            const row = e.target.closest('tr');
+            const qtyInput = row.querySelector(`.item-qty[data-index="${index}"]`);
+            const priceInput = row.querySelector(`.item-price[data-index="${index}"]`);
+            const discountInput = row.querySelector(`.item-discount[data-index="${index}"]`);
+
+            let newQty = parseFloat(qtyInput.value);
+            if (isNaN(newQty) || newQty <= 0) newQty = 1;
+            if (orderItems[index].stock_item_id && newQty > 1) { newQty = 1; qtyInput.value = 1; }
+
+            let newPrice = parseFloat(priceInput.value);
+            if (isNaN(newPrice) || newPrice < 0) newPrice = 0;
+
+            let newDiscount = parseFloat(discountInput.value);
+            if (isNaN(newDiscount) || newDiscount < 0) newDiscount = 0;
+
             orderItems[index].quantity = newQty;
             orderItems[index].price = newPrice;
             orderItems[index].discount = newDiscount;
-            
-            renderItemsTable();
+
+            const newSubtotal = (newPrice * newQty) - newDiscount;
+            const subtotalCell = row.querySelector('.subtotal');
+            if (subtotalCell) subtotalCell.textContent = `R$ ${newSubtotal.toFixed(2)}`;
+
+            updateOrderTotals();
         }
     });
 
@@ -254,7 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
             observacao: document.getElementById('observacao').value,
             items: orderItems.map(item => ({
                 id: item.id,
-                qtd: item.quantity,
+                stock_item_id: item.stock_item_id || null,
+                qtd: item.stock_item_id ? 1 : item.quantity,
                 preco: item.price,
                 desconto: item.discount
             })),
@@ -291,6 +321,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Sem filtro manual — o datalist já filtra enquanto digita
 
 // Script para o formulário de trade-in
 document.addEventListener('DOMContentLoaded', function() {

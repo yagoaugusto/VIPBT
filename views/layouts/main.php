@@ -112,11 +112,7 @@
                         </a>
                     </li>
                 <?php endif; ?>
-                <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL_ROOT; ?>/pages/about">
-                        <i class="fas fa-info-circle me-1"></i>Sobre
-                    </a>
-                </li>
+                
             </ul>
         </div>
     </div>
@@ -161,6 +157,6 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?php echo URL_ROOT; ?>/js/main.js"></script>
+<script src="<?php echo URL_ROOT; ?>/js/main.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

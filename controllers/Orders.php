@@ -91,12 +91,14 @@ class Orders extends Controller {
             exit();
 
         } else {
+            $stockModel = $this->model('StockModel');
             $data = [
                 'title' => 'Novo Pedido',
                 'customers' => $this->customerModel->getAllCustomers(),
                 'sellers' => $this->sellerModel->getAllSellers(),
                 'channels' => $this->channelModel->getAllChannels(),
-                'products' => $this->productModel->getAllProducts()
+                'products' => $this->productModel->getAllProducts(),
+                'available_stock_items' => $stockModel->getAllAvailableStockItemsForSale()
             ];
             $this->view('orders/add', $data);
         }

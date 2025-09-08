@@ -18,12 +18,5 @@ class Pages extends Controller {
         $this->view('pages/index', $data);
     }
 
-    public function about(){
-        $data = [
-            'title' => 'Sobre a VIP LOJA BT',
-            'description' => 'Somos especializados em Beach Tennis, oferecendo os melhores produtos e serviços para este esporte em crescimento.'
-        ];
-
-        $this->view('pages/about', $data);
-    }
+    
 }

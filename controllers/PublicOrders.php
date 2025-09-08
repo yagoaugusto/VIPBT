@@ -15,9 +15,9 @@ class PublicOrders extends Controller {
 
     // Página de consulta pública - não requer autenticação
     public function consulta($publicCode = null){
-        // Debug: Check if method is called
+        // Debug
         error_log("PublicOrders::consulta called with code: " . ($publicCode ?? 'null'));
-        
+
         $data = [
             'title' => 'Consulta de Pedido',
             'public_code' => $publicCode,
@@ -37,28 +37,50 @@ class PublicOrders extends Controller {
         }
 
         if($publicCode){
+            // Busca o pedido pelo código público
             try {
                 $order = $this->orderModel->getOrderByPublicCode($publicCode);
-                
-                if($order){
-                    $data['order'] = $order;
-                    $data['order_items'] = $this->orderModel->getOrderItems($order->id);
-                    
-                    // Carrega informações de fulfillment
-                    $data['fulfillment'] = $this->fulfillmentModel->getFulfillmentByOrderId($order->id);
-                    
-                    // Carrega informações de pagamentos
-                    $data['payments'] = $this->paymentModel->getPaymentsByOrderId($order->id);
-                    
-                    // Gera timeline do pedido
-                    $data['timeline'] = $this->generateOrderTimeline($order, $data['fulfillment'], $data['payments']);
-                    
-                } else {
-                    $data['error'] = 'Pedido não encontrado. Verifique o código informado.';
-                }
             } catch (Exception $e) {
-                $data['error'] = 'Erro ao consultar pedido. Tente novamente.';
-                error_log("Error in PublicOrders consultation: " . $e->getMessage());
+                error_log("Error fetching order by public code: " . $e->getMessage());
+                $order = null;
+            }
+
+            if($order){
+                $data['order'] = $order;
+
+                // Carrega itens do pedido (tolerante a erro)
+                try {
+                    $data['order_items'] = $this->orderModel->getOrderItems($order->id);
+                } catch (Exception $e) {
+                    error_log("Error fetching order items: " . $e->getMessage());
+                    $data['order_items'] = [];
+                }
+
+                // Fulfillment (tolerante a erro)
+                try {
+                    $data['fulfillment'] = $this->fulfillmentModel->getFulfillmentByOrderId($order->id);
+                } catch (Exception $e) {
+                    error_log("Error fetching fulfillment: " . $e->getMessage());
+                    $data['fulfillment'] = null;
+                }
+
+                // Pagamentos (tolerante a erro)
+                try {
+                    $data['payments'] = $this->paymentModel->getPaymentsByOrderId($order->id);
+                } catch (Exception $e) {
+                    error_log("Error fetching payments: " . $e->getMessage());
+                    $data['payments'] = [];
+                }
+
+                // Timeline
+                try {
+                    $data['timeline'] = $this->generateOrderTimeline($order, $data['fulfillment'], $data['payments']);
+                } catch (Exception $e) {
+                    error_log("Error generating timeline: " . $e->getMessage());
+                    $data['timeline'] = [];
+                }
+            } else {
+                $data['error'] = 'Pedido não encontrado. Verifique o código informado.';
             }
         }
 
@@ -67,10 +89,11 @@ class PublicOrders extends Controller {
 
     private function generateOrderTimeline($order, $fulfillment, $payments){
         $timeline = [];
-        
-        // Data de criação do pedido
+
+        // Data de criação do pedido (fallback para campo 'data')
+        $createdDate = $order->data ?? ($order->created_at ?? date('Y-m-d'));
         $timeline[] = [
-            'date' => $order->created_at,
+            'date' => $createdDate,
             'status' => 'Pedido Criado',
             'description' => 'Seu pedido foi registrado em nosso sistema',
             'icon' => 'fa-shopping-cart',
@@ -78,16 +101,21 @@ class PublicOrders extends Controller {
         ];
 
         // Status de pagamento
-        if(!empty($payments)){
-            $totalPaid = array_sum(array_column($payments, 'valor'));
+        if(is_array($payments) && !empty($payments)){
+            $totalPaid = 0;
+            $dates = [];
+            foreach ($payments as $p) {
+                $totalPaid += (float)($p->valor ?? 0);
+                if (!empty($p->data)) { $dates[] = $p->data; }
+            }
             if($totalPaid > 0){
-                $paymentDate = min(array_column($payments, 'data'));
+                $paymentDate = !empty($dates) ? min($dates) : $createdDate;
                 $timeline[] = [
                     'date' => $paymentDate,
-                    'status' => $totalPaid >= $order->total ? 'Pagamento Confirmado' : 'Pagamento Parcial',
+                    'status' => $totalPaid >= (float)($order->total ?? 0) ? 'Pagamento Confirmado' : 'Pagamento Parcial',
                     'description' => 'Pagamento de R$ ' . number_format($totalPaid, 2, ',', '.') . ' confirmado',
                     'icon' => 'fa-credit-card',
-                    'color' => $totalPaid >= $order->total ? 'success' : 'warning'
+                    'color' => $totalPaid >= (float)($order->total ?? 0) ? 'success' : 'warning'
                 ];
             }
         }
@@ -95,7 +123,7 @@ class PublicOrders extends Controller {
         // Status fiscal (se implementado)
         if(isset($order->status_fiscal) && $order->status_fiscal == 'faturado'){
             $timeline[] = [
-                'date' => $order->data_faturamento ?? $order->created_at,
+                'date' => $order->data_faturamento ?? $createdDate,
                 'status' => 'Nota Fiscal Emitida',
                 'description' => 'Nota fiscal do pedido foi emitida',
                 'icon' => 'fa-file-text',
@@ -105,9 +133,9 @@ class PublicOrders extends Controller {
 
         // Status de fulfillment
         if($fulfillment){
-            if($fulfillment->status == 'preparando' || $fulfillment->status == 'enviado' || $fulfillment->status == 'entregue'){
+            if(in_array($fulfillment->status, ['preparando','enviado','entregue'], true)){
                 $timeline[] = [
-                    'date' => $fulfillment->created_at,
+                    'date' => $fulfillment->created_at ?? $createdDate,
                     'status' => 'Preparando Envio',
                     'description' => 'Seu pedido está sendo preparado para envio',
                     'icon' => 'fa-box',
@@ -115,19 +143,19 @@ class PublicOrders extends Controller {
                 ];
             }
 
-            if($fulfillment->status == 'enviado' || $fulfillment->status == 'entregue'){
+            if(in_array($fulfillment->status, ['enviado','entregue'], true)){
                 $timeline[] = [
-                    'date' => $fulfillment->enviado_em,
+                    'date' => $fulfillment->enviado_em ?? $fulfillment->created_at ?? $createdDate,
                     'status' => 'Enviado',
-                    'description' => 'Pedido enviado' . ($fulfillment->codigo_rastreio ? ' - Código: ' . $fulfillment->codigo_rastreio : ''),
+                    'description' => 'Pedido enviado' . (!empty($fulfillment->codigo_rastreio) ? ' - Código: ' . $fulfillment->codigo_rastreio : ''),
                     'icon' => 'fa-truck',
                     'color' => 'primary'
                 ];
             }
 
-            if($fulfillment->status == 'entregue'){
+            if($fulfillment->status === 'entregue'){
                 $timeline[] = [
-                    'date' => $fulfillment->entregue_em,
+                    'date' => $fulfillment->entregue_em ?? $fulfillment->enviado_em ?? $createdDate,
                     'status' => 'Entregue',
                     'description' => 'Pedido entregue com sucesso',
                     'icon' => 'fa-check-circle',
@@ -136,9 +164,11 @@ class PublicOrders extends Controller {
             }
         }
 
-        // Ordena por data
+        // Ordena por data com segurança
         usort($timeline, function($a, $b) {
-            return strtotime($a['date']) - strtotime($b['date']);
+            $ad = isset($a['date']) ? strtotime($a['date']) : 0;
+            $bd = isset($b['date']) ? strtotime($b['date']) : 0;
+            return ($ad <=> $bd);
         });
 
         return $timeline;

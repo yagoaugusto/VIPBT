@@ -178,9 +178,6 @@
                                             <i class="fas fa-search"></i> Consultar
                                         </button>
                                     </div>
-                                    <small class="form-text text-muted mt-2 d-block">
-                                        <i class="fas fa-info-circle"></i> O código do pedido está no seu e-mail de confirmação ou nota fiscal
-                                    </small>
                                 </form>
                                 
                                 <div class="text-center">
@@ -199,7 +196,7 @@
                             </div>
                             
                             <div class="text-center">
-                                <a href="" class="btn btn-primary">
+                                <a href="../consulta/" class="btn btn-primary">
                                     <i class="fas fa-arrow-left"></i> Tentar Novamente
                                 </a>
                             </div>
@@ -307,7 +304,7 @@
                             <?php endif; ?>
 
                             <div class="text-center mt-4">
-                                <a href="" class="btn btn-outline-primary">
+                                <a href="../consulta/" class="btn btn-outline-primary">
                                     <i class="fas fa-search"></i> Consultar Outro Pedido
                                 </a>
                             </div>

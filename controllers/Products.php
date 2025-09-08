@@ -32,13 +32,10 @@ class Products extends Controller {
                 'brand_id' => $_POST['brand_id'],
                 'category_id' => $_POST['category_id'],
                 'tipo_condicao' => $_POST['tipo_condicao'],
-                'custo' => $_POST['custo'],
-                'preco' => $_POST['preco'],
                 'ativo' => isset($_POST['ativo']) ? 1 : 0,
                 'nome_err' => '',
                 'brand_id_err' => '',
-                'category_id_err' => '',
-                'preco_err' => ''
+                'category_id_err' => ''
             ];
 
             // Validação
@@ -51,11 +48,7 @@ class Products extends Controller {
             if(empty($data['category_id'])){
                 $data['category_id_err'] = 'Por favor, selecione a categoria.';
             }
-            if(empty($data['preco'])){
-                $data['preco_err'] = 'Por favor, insira o preço.';
-            }
-
-            if(empty($data['nome_err']) && empty($data['brand_id_err']) && empty($data['category_id_err']) && empty($data['preco_err'])){
+            if(empty($data['nome_err']) && empty($data['brand_id_err']) && empty($data['category_id_err'])){
                 if($this->productModel->addProduct($data)){
                     header('Location: ' . URL_ROOT . '/products');
                 } else {
@@ -76,8 +69,6 @@ class Products extends Controller {
                 'brand_id' => '',
                 'category_id' => '',
                 'tipo_condicao' => 'novo',
-                'custo' => '',
-                'preco' => '',
                 'ativo' => 1,
                 'brands' => $this->brandModel->getAllBrands(),
                 'categories' => $this->categoryModel->getAllCategories()
@@ -97,13 +88,10 @@ class Products extends Controller {
                 'brand_id' => $_POST['brand_id'],
                 'category_id' => $_POST['category_id'],
                 'tipo_condicao' => $_POST['tipo_condicao'],
-                'custo' => $_POST['custo'],
-                'preco' => $_POST['preco'],
                 'ativo' => isset($_POST['ativo']) ? 1 : 0,
                 'nome_err' => '',
                 'brand_id_err' => '',
-                'category_id_err' => '',
-                'preco_err' => ''
+                'category_id_err' => ''
             ];
 
             // Validação
@@ -116,11 +104,7 @@ class Products extends Controller {
             if(empty($data['category_id'])){
                 $data['category_id_err'] = 'Por favor, selecione a categoria.';
             }
-            if(empty($data['preco'])){
-                $data['preco_err'] = 'Por favor, insira o preço.';
-            }
-
-            if(empty($data['nome_err']) && empty($data['brand_id_err']) && empty($data['category_id_err']) && empty($data['preco_err'])){
+            if(empty($data['nome_err']) && empty($data['brand_id_err']) && empty($data['category_id_err'])){
                 if($this->productModel->updateProduct($data)){
                     header('Location: ' . URL_ROOT . '/products');
                 } else {
@@ -144,8 +128,6 @@ class Products extends Controller {
                 'brand_id' => $product->brand_id,
                 'category_id' => $product->category_id,
                 'tipo_condicao' => $product->tipo_condicao,
-                'custo' => $product->custo,
-                'preco' => $product->preco,
                 'ativo' => $product->ativo,
                 'brands' => $this->brandModel->getAllBrands(),
                 'categories' => $this->categoryModel->getAllCategories()

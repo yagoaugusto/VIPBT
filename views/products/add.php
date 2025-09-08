@@ -54,19 +54,6 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-group mb-3">
-                            <label for="custo">Custo (R$):</label>
-                            <input type="text" name="custo" class="form-control" value="<?php echo $custo; ?>">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group mb-3">
-                            <label for="preco">Preço (R$): <sup>*</sup></label>
-                            <input type="text" name="preco" class="form-control <?php echo (!empty($preco_err)) ? 'is-invalid' : ''; ?>" value="<?php echo $preco; ?>">
-                            <span class="invalid-feedback"><?php echo $preco_err; ?></span>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group mb-3">
                             <label for="tipo_condicao">Condição:</label>
                             <select name="tipo_condicao" class="form-select">
                                 <option value="novo" <?php echo ($tipo_condicao == 'novo') ? 'selected' : ''; ?>>Novo</option>

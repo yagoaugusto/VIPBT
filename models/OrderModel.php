@@ -153,31 +153,42 @@ class OrderModel {
                         throw new Exception("Estoque insuficiente para o produto ID {$item['id']}. Disponível: {$availableQtd}, Solicitado: {$item['qtd']}");
                     }
                     
-                    $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
-                    $this->db->bind(':order_id', $orderId);
-                    $this->db->bind(':product_id', $item['id']);
-                    $this->db->bind(':qtd', $item['qtd']);
-                    $this->db->bind(':preco_unit', $item['preco']);
-                    $this->db->bind(':desconto', $item['desconto']);
-                    $this->db->execute();
+                    $hasStockItemColumn = $this->orderItemsHasStockItemIdColumn();
+                    if ($hasStockItemColumn) {
+                        $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto, stock_item_id) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto, :stock_item_id)");
+                        $this->db->bind(':order_id', $orderId);
+                        $this->db->bind(':product_id', $item['id']);
+                        $this->db->bind(':qtd', $item['qtd']);
+                        $this->db->bind(':preco_unit', $item['preco']);
+                        $this->db->bind(':desconto', $item['desconto']);
+                        $this->db->bind(':stock_item_id', $item['stock_item_id'] ?? null);
+                        $this->db->execute();
+                    } else {
+                        $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
+                        $this->db->bind(':order_id', $orderId);
+                        $this->db->bind(':product_id', $item['id']);
+                        $this->db->bind(':qtd', $item['qtd']);
+                        $this->db->bind(':preco_unit', $item['preco']);
+                        $this->db->bind(':desconto', $item['desconto']);
+                        $this->db->execute();
+                    }
                     $orderTotal += ($item['preco'] * $item['qtd']) - $item['desconto'];
                     
-                    // Reduz o estoque: marca itens como vendidos
-                    $availableItems = $stockModel->getAvailableStockItems($item['id']);
-                    $qtdToSell = $item['qtd'];
-                    
-                    foreach($availableItems as $stockItem){
-                        if($qtdToSell <= 0) break;
-                        
-                        $stockModel->markStockItemAsSold($stockItem->id, $orderId);
-                        $qtdToSell--;
+                    // Reserva o estoque (não vende ainda)
+                    $qtdToReserve = (int)$item['qtd'];
+                    if (!empty($item['stock_item_id'])) {
+                        $stockModel->markStockItemAsReserved($item['stock_item_id'], $orderId);
+                        $qtdToReserve = max(0, $qtdToReserve - 1);
                     }
-                    
-                    // Se não há itens físicos suficientes, ainda registra a movimentação
-                    if($qtdToSell > 0){
-                        $this->db->query("INSERT INTO inventory_moves (product_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, 'saida', :qtd, 'Venda', :order_id, 'Venda sem item físico específico')");
+                    if ($qtdToReserve > 0) {
+                        $reserved = $stockModel->reserveAvailableItems($item['id'], $qtdToReserve, $orderId);
+                        $qtdToReserve -= $reserved;
+                    }
+                    // Se ainda restar quantidade, registra baixa de reserva genérica (sem item)
+                    if($qtdToReserve > 0){
+                        $this->db->query("INSERT INTO inventory_moves (product_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, 'baixa_reserva', :qtd, 'Reserva Pedido', :order_id, 'Reserva sem item físico específico')");
                         $this->db->bind(':product_id', $item['id']);
-                        $this->db->bind(':qtd', $qtdToSell);
+                        $this->db->bind(':qtd', $qtdToReserve);
                         $this->db->bind(':order_id', $orderId);
                         $this->db->execute();
                     }
@@ -224,6 +235,24 @@ class OrderModel {
             $this->db->rollBack();
             error_log("OrderModel::addOrder error: " . $e->getMessage());
             throw $e; // Re-throw the exception so the controller can handle it properly
+        }
+    }
+
+    // Check if order_items has stock_item_id column (for linking the sold item)
+    private function orderItemsHasStockItemIdColumn(){
+        try {
+            $this->db->query("
+                SELECT COUNT(*) as column_exists 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'order_items' 
+                AND COLUMN_NAME = 'stock_item_id'
+            ");
+            $result = $this->db->single();
+            return $result && $result->column_exists > 0;
+        } catch (Exception $e) {
+            error_log("Cannot check order_items schema: " . $e->getMessage());
+            return false;
         }
     }
     
@@ -282,7 +311,6 @@ class OrderModel {
                 orders.*,
                 c.nome as customer_nome,
                 c.telefone as customer_telefone,
-                c.cpf as customer_cpf,
                 u.nome as seller_nome,
                 ch.nome as channel_nome
             FROM orders
@@ -354,6 +382,28 @@ class OrderModel {
                 throw new Exception("Pedido não encontrado ou já possui status que não permite confirmação como venda.");
             }
 
+            // Converte reservas em vendas efetivas
+            require_once __DIR__ . '/StockModel.php';
+            $stockModel = new StockModel();
+            $stockModel->markReservedItemsAsSoldForOrder($order_id);
+
+            // Se este pedido veio de conversão de empréstimo, converte as saídas de empréstimo em venda
+            $this->db->query("SELECT id FROM loans WHERE order_id = :order_id LIMIT 1");
+            $this->db->bind(':order_id', $order_id);
+            $loan = $this->db->single();
+            if ($loan && isset($loan->id)) {
+                // Marcar itens como vendidos
+                $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id IN (SELECT stock_item_id FROM loan_items WHERE loan_id = :loan_id)");
+                $this->db->bind(':loan_id', $loan->id);
+                $this->db->execute();
+
+                // Converter movimentações de empréstimo em venda
+                $this->db->query("UPDATE inventory_moves SET tipo = 'saida', ref_origem = 'Venda', id_origem = :order_id, observacao = 'Conversão de empréstimo em venda' WHERE tipo = 'emprestimo_saida' AND id_origem = :loan_id");
+                $this->db->bind(':order_id', $order_id);
+                $this->db->bind(':loan_id', $loan->id);
+                $this->db->execute();
+            }
+
             $this->db->commit();
             return true;
         } catch (Exception $e) {
@@ -394,6 +444,29 @@ class OrderModel {
 
             if ($this->db->rowCount() === 0) {
                 throw new Exception("Pedido não encontrado.");
+            }
+
+            // Se cancelar, libera reservas; se vender, converte
+            require_once __DIR__ . '/StockModel.php';
+            $stockModel = new StockModel();
+            if ($status === 'cancelado') {
+                $stockModel->releaseReservedItemsForOrder($order_id);
+            } elseif ($status === 'vendido') {
+                $stockModel->markReservedItemsAsSoldForOrder($order_id);
+                // Converter empréstimo vinculado
+                $this->db->query("SELECT id FROM loans WHERE order_id = :order_id LIMIT 1");
+                $this->db->bind(':order_id', $order_id);
+                $loan = $this->db->single();
+                if ($loan && isset($loan->id)) {
+                    $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id IN (SELECT stock_item_id FROM loan_items WHERE loan_id = :loan_id)");
+                    $this->db->bind(':loan_id', $loan->id);
+                    $this->db->execute();
+
+                    $this->db->query("UPDATE inventory_moves SET tipo = 'saida', ref_origem = 'Venda', id_origem = :order_id, observacao = 'Conversão de empréstimo em venda' WHERE tipo = 'emprestimo_saida' AND id_origem = :loan_id");
+                    $this->db->bind(':order_id', $order_id);
+                    $this->db->bind(':loan_id', $loan->id);
+                    $this->db->execute();
+                }
             }
 
             $this->db->commit();

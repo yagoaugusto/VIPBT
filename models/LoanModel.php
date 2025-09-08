@@ -197,7 +197,7 @@ class LoanModel {
                 throw new Exception('Empréstimo não possui itens');
             }
 
-            // Prepara dados do pedido
+            // Prepara dados do pedido (pedido normal, ainda não vendido)
             $orderData = [
                 'customer_id' => $customer_id,
                 'seller_id' => $seller_id,
@@ -211,12 +211,10 @@ class LoanModel {
             foreach($loanItems as $item){
                 // Busca informações do produto
                 $this->db->query("
-                    SELECT p.id, 
-                           COALESCE(pp.preco, 0) as preco
-                    FROM products p 
-                    JOIN stock_items si ON p.id = si.product_id 
-                    LEFT JOIN product_prices pp ON pp.product_id = p.id 
-                        AND pp.vigente_desde = (SELECT MAX(vigente_desde) FROM product_prices WHERE product_id = p.id)
+                    SELECT p.id,
+                           si.preco_venda AS preco
+                    FROM products p
+                    JOIN stock_items si ON p.id = si.product_id
                     WHERE si.id = :stock_item_id
                 ");
                 $this->db->bind(':stock_item_id', $item->stock_item_id);
@@ -226,8 +224,9 @@ class LoanModel {
                     $orderData['items'][] = [
                         'id' => $product->id,
                         'qtd' => 1,
-                        'preco' => $product->preco,
-                        'desconto' => 0
+                        'preco' => (float)($product->preco ?? 0),
+                        'desconto' => 0,
+                        'stock_item_id' => $item->stock_item_id
                     ];
                 }
             }
@@ -238,25 +237,11 @@ class LoanModel {
                 throw new Exception('Erro ao criar pedido da conversão');
             }
 
-            // Atualiza status do empréstimo
+            // Vincula o pedido ao empréstimo e marca como convertido para venda (acompanhar pelo pedido)
             $this->db->query("UPDATE loans SET status = 'convertido_em_venda', order_id = :order_id WHERE id = :loan_id");
             $this->db->bind(':order_id', $orderId);
             $this->db->bind(':loan_id', $loan_id);
             $this->db->execute();
-
-            // Atualiza status dos itens de empréstimo para vendido
-            foreach($loanItems as $item){
-                $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id = :stock_item_id");
-                $this->db->bind(':stock_item_id', $item->stock_item_id);
-                $this->db->execute();
-
-                // Registra a movimentação de venda
-                $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'saida', 1, 'Venda', :order_id, 'Conversão de empréstimo em venda')");
-                $this->db->bind(':product_id', $this->getProductIdFromStockItem($item->stock_item_id));
-                $this->db->bind(':stock_item_id', $item->stock_item_id);
-                $this->db->bind(':order_id', $orderId);
-                $this->db->execute();
-            }
 
             $this->db->commit();
             return $orderId;
@@ -287,8 +272,8 @@ class LoanModel {
         // Gera código público para o pedido
         $public_code = $this->generatePublicCode();
 
-        // Cria o pedido principal
-        $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao, status_pedido, status_fiscal, status_entrega, data_confirmacao_venda, confirmado_por) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao, 'vendido', 'nao_faturado', 'nao_entregue', NOW(), :confirmado_por)");
+        // Cria o pedido principal (status padrão 'novo')
+        $this->db->query("INSERT INTO orders (customer_id, seller_id, channel_id, data, public_code, observacao) VALUES (:customer_id, :seller_id, :channel_id, :data, :public_code, :observacao)");
         
         $this->db->bind(':customer_id', $orderData['customer_id']);
         $this->db->bind(':seller_id', $orderData['seller_id']);
@@ -296,16 +281,30 @@ class LoanModel {
         $this->db->bind(':data', $orderData['data']);
         $this->db->bind(':public_code', $public_code);
         $this->db->bind(':observacao', $orderData['observacao']);
-        $this->db->bind(':confirmado_por', 1); // TODO: usar ID do usuário logado
         
         $this->db->execute();
         $orderId = $this->db->lastInsertId();
 
         $orderTotal = 0;
         
-        // Adiciona os itens do pedido baseado nos itens do empréstimo
+        // Descobre se existe a coluna stock_item_id em order_items
+        $hasStockItemColumn = false;
+        try {
+            $this->db->query("SHOW COLUMNS FROM order_items LIKE 'stock_item_id'");
+            $this->db->execute();
+            $hasStockItemColumn = $this->db->rowCount() > 0;
+        } catch (Exception $e) {
+            $hasStockItemColumn = false;
+        }
+
+        // Adiciona os itens do pedido baseado nos itens do empréstimo (vinculando o stock_item)
         foreach($orderData['items'] as $item){
-            $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
+            if ($hasStockItemColumn) {
+                $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto, stock_item_id) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto, :stock_item_id)");
+                $this->db->bind(':stock_item_id', $item['stock_item_id'] ?? null);
+            } else {
+                $this->db->query("INSERT INTO order_items (order_id, product_id, qtd, preco_unit, desconto) VALUES (:order_id, :product_id, :qtd, :preco_unit, :desconto)");
+            }
             $this->db->bind(':order_id', $orderId);
             $this->db->bind(':product_id', $item['id']);
             $this->db->bind(':qtd', $item['qtd']);

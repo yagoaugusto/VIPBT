@@ -41,10 +41,12 @@ class Stock extends Controller {
                 'product_id' => $_POST['product_id'],
                 'qtd' => trim($_POST['qtd']),
                 'custo' => trim($_POST['custo']),
+                'preco_venda' => isset($_POST['preco_venda']) ? trim($_POST['preco_venda']) : null,
                 'observacao' => trim($_POST['observacao']),
                 'product_id_err' => '',
                 'qtd_err' => '',
                 'custo_err' => '',
+                'preco_venda_err' => '',
                 'general_err' => ''
             ];
 
@@ -58,8 +60,11 @@ class Stock extends Controller {
             if(!is_numeric($data['custo'])){
                 $data['custo_err'] = 'Por favor, insira um custo válido.';
             }
+            if($data['preco_venda'] !== null && $data['preco_venda'] !== '' && !is_numeric($data['preco_venda'])){
+                $data['preco_venda_err'] = 'Por favor, insira um preço de venda válido.';
+            }
 
-            if(empty($data['product_id_err']) && empty($data['qtd_err']) && empty($data['custo_err'])){
+            if(empty($data['product_id_err']) && empty($data['qtd_err']) && empty($data['custo_err']) && empty($data['preco_venda_err'])){
                 try {
                     if($this->stockModel->addStockMovement($data)){
                         core\Session::flash('stock_message', 'Entrada de estoque registrada com sucesso!');
@@ -91,9 +96,11 @@ class Stock extends Controller {
                 'qtd' => '',
                 'custo' => '',
                 'observacao' => '',
+                'preco_venda' => '',
                 'product_id_err' => '',
                 'qtd_err' => '',
                 'custo_err' => '',
+                'preco_venda_err' => '',
                 'general_err' => ''
             ];
             $this->view('stock/add', $data);

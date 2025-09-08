@@ -23,6 +23,7 @@
             <th>Grade</th>
             <th>Status</th>
             <th>Custo de Aquisição</th>
+            <th>Preço de Venda</th>
         </tr>
     </thead>
     <tbody>
@@ -49,6 +50,13 @@
                 </span>
             </td>
             <td>R$ <?php echo number_format($item->aquisicao_custo, 2, ',', '.'); ?></td>
+            <td>
+                <?php if(isset($item->preco_venda) && $item->preco_venda !== null): ?>
+                    R$ <?php echo number_format($item->preco_venda, 2, ',', '.'); ?>
+                <?php else: ?>
+                    —
+                <?php endif; ?>
+            </td>
         </tr>
         <?php endforeach; ?>
     </tbody>

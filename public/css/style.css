@@ -163,7 +163,7 @@ body {
 }
 
 .quick-access-card h4 {
-    color: var(--dark-color);
+    color: var(--primary-color);
     margin-bottom: 1rem;
     font-weight: 700;
     font-size: 1.4rem;

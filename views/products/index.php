@@ -28,7 +28,7 @@
             <td><?php echo $product->nome; ?></td>
             <td><?php echo $product->brand_nome; ?></td>
             <td><?php echo $product->category_nome; ?></td>
-            <td>R$ <?php echo number_format($product->preco, 2, ',', '.'); ?></td>
+            <td>—</td>
             <td>
                 <?php if($product->ativo): ?>
                     <span class="badge bg-success">Ativo</span>

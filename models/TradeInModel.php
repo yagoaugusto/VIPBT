@@ -117,12 +117,64 @@ class TradeInModel {
             $this->db->bind(':id', $trade_in_id);
             $this->db->execute();
 
-            // Se o status for 'aprovado' e houver um stock_item_resultante_id, atualiza o item de trade-in
-            if($status == 'aprovado' && $stock_item_resultante_id){
-                $this->db->query("UPDATE trade_in_items SET stock_item_resultante_id = :stock_item_resultante_id WHERE trade_in_id = :trade_in_id");
-                $this->db->bind(':stock_item_resultante_id', $stock_item_resultante_id);
+            // Se o status for 'aprovado', criar itens de estoque seminovos para cada item do trade-in
+            if($status == 'aprovado'){
+                // Busca itens do trade-in
+                $this->db->query("SELECT id, brand_id, product_model_id, modelo_texto, grade, serie, avaliacao_valor, valor_creditado FROM trade_in_items WHERE trade_in_id = :trade_in_id");
                 $this->db->bind(':trade_in_id', $trade_in_id);
-                $this->db->execute();
+                $items = $this->db->resultSet();
+
+                foreach($items as $item){
+                    // Só cria item de estoque se houver modelo de produto definido
+                    if (!empty($item->product_model_id)) {
+                        $productId = (int)$item->product_model_id;
+
+                        // Cria o item físico no estoque com condição 'seminovo'
+                        $this->db->query("INSERT INTO stock_items (product_id, condicao, aquisicao_tipo, aquisicao_custo, status, serie, grade, preco_venda) VALUES (:product_id, 'seminovo', 'trade_in', :custo, 'em_estoque', :serie, :grade, :preco_venda)");
+                        $this->db->bind(':product_id', $productId);
+                        $this->db->bind(':custo', (float)$item->valor_creditado);
+                        $this->db->bind(':serie', $item->serie);
+                        $this->db->bind(':grade', $item->grade);
+                        $this->db->bind(':preco_venda', (float)$item->avaliacao_valor);
+                        $this->db->execute();
+                        $stockItemId = $this->db->lastInsertId();
+
+                        // Vincula o item criado ao item de trade-in
+                        $this->db->query("UPDATE trade_in_items SET stock_item_resultante_id = :stock_item_id WHERE id = :id");
+                        $this->db->bind(':stock_item_id', $stockItemId);
+                        $this->db->bind(':id', $item->id);
+                        $this->db->execute();
+
+                        // Registra movimentação de entrada
+                        $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'entrada', 1, 'Trade-in', :trade_in_id, :observacao)");
+                        $this->db->bind(':product_id', $productId);
+                        $this->db->bind(':stock_item_id', $stockItemId);
+                        $this->db->bind(':trade_in_id', $trade_in_id);
+                        $this->db->bind(':observacao', 'Entrada de seminovo via trade-in');
+                        $this->db->execute();
+
+                        // Atualiza (ou define) o preço de venda do produto com o valor avaliado
+                        // Observação: isso define o preço no nível do produto (não por item)
+                        $this->db->query("SELECT preco, custo FROM product_prices WHERE product_id = :product_id ORDER BY vigente_desde DESC LIMIT 1");
+                        $this->db->bind(':product_id', $productId);
+                        $lastPrice = $this->db->single();
+
+                        $avaliado = (float)$item->avaliacao_valor;
+                        $custo = (float)$item->valor_creditado;
+
+                        if (!$lastPrice || (float)$lastPrice->preco !== $avaliado || (float)$lastPrice->custo !== $custo) {
+                            $this->db->query("INSERT INTO product_prices (product_id, custo, preco, vigente_desde) VALUES (:product_id, :custo, :preco, :vigente_desde)");
+                            $this->db->bind(':product_id', $productId);
+                            $this->db->bind(':custo', $custo);
+                            $this->db->bind(':preco', $avaliado);
+                            $this->db->bind(':vigente_desde', date('Y-m-d'));
+                            $this->db->execute();
+                        }
+                    } else {
+                        // Sem modelo de produto, não é possível criar item no estoque; registrar log
+                        error_log("TradeInModel::updateTradeInStatus: trade_in_item {$item->id} sem product_model_id - item de estoque não criado.");
+                    }
+                }
             }
 
             $this->db->commit();

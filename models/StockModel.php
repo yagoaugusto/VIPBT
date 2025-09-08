@@ -19,13 +19,26 @@ class StockModel {
             FROM stock_items si
             JOIN products p ON si.product_id = p.id
             JOIN brands b ON p.brand_id = b.id
-            ORDER BY p.nome ASC, si.id ASC
+                ORDER BY 
+                    CASE si.status 
+                        WHEN 'emprestado' THEN 1
+                        WHEN 'reservado' THEN 2
+                        WHEN 'em_estoque' THEN 3
+                        WHEN 'vendido' THEN 4
+                        ELSE 5
+                    END,
+                    p.nome ASC,
+                    si.id ASC
         ");
         return $this->db->resultSet();
     }
 
     public function addStockMovement($data){
-        $this->db->beginTransaction();
+        $startedTransaction = false;
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+        }
         try {
             // Validação dos dados
             if (empty($data['product_id']) || !is_numeric($data['product_id'])) {
@@ -49,32 +62,40 @@ class StockModel {
                 throw new Exception('Produto não encontrado');
             }
             
+            // Normaliza valores
+            $qtd = (int)$data['qtd'];
+            $custo = (float)$data['custo'];
+            $precoVenda = (isset($data['preco_venda']) && $data['preco_venda'] !== '' && is_numeric($data['preco_venda'])) ? (float)$data['preco_venda'] : null;
+
             // Insere a movimentação de entrada
             $this->db->query("INSERT INTO inventory_moves (product_id, tipo, qtd, ref_origem, observacao) VALUES (:product_id, 'entrada', :qtd, :ref_origem, :observacao)");
             $this->db->bind(':product_id', $data['product_id']);
-            $this->db->bind(':qtd', $data['qtd']);
+            $this->db->bind(':qtd', $qtd);
             $this->db->bind(':ref_origem', 'Entrada Manual');
             $this->db->bind(':observacao', $data['observacao'] ?? '');
             $this->db->execute();
             $moveId = $this->db->lastInsertId();
 
-            // Para produtos novos, assumimos que cada entrada gera um item de estoque.
-            // A lógica pode ser mais complexa (ex: um único stock_item com quantidade),
-            // mas para o controle unitário de seminovos, este modelo é mais flexível.
-            if($product->tipo_condicao == 'novo'){
-                for($i = 0; $i < $data['qtd']; $i++){
-                    $this->db->query("INSERT INTO stock_items (product_id, condicao, aquisicao_tipo, aquisicao_custo, status) VALUES (:product_id, 'novo', 'compra', :custo, 'em_estoque')");
-                    $this->db->bind(':product_id', $data['product_id']);
-                    $this->db->bind(':custo', $data['custo']);
-                    $this->db->execute();
-                }
+            // Para qualquer tipo de produto, cada unidade gera um item físico em estoque
+            $condicao = $product->tipo_condicao; // 'novo' ou 'seminovo'
+            for($i = 0; $i < $qtd; $i++){
+                $this->db->query("INSERT INTO stock_items (product_id, condicao, aquisicao_tipo, aquisicao_custo, status, preco_venda) VALUES (:product_id, :condicao, 'compra', :custo, 'em_estoque', :preco_venda)");
+                $this->db->bind(':product_id', $data['product_id']);
+                $this->db->bind(':condicao', $condicao);
+                $this->db->bind(':custo', $custo);
+                $this->db->bind(':preco_venda', $precoVenda);
+                $this->db->execute();
             }
             
-            $this->db->commit();
+            if ($startedTransaction) {
+                $this->db->commit();
+            }
             return true;
 
         } catch (Exception $e){
-            $this->db->rollBack();
+            if ($startedTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log("Erro em addStockMovement: " . $e->getMessage());
             throw $e; // Re-throw para que o controlador possa tratar
         }
@@ -94,6 +115,28 @@ class StockModel {
             JOIN brands b ON p.brand_id = b.id
             WHERE si.status = 'em_estoque' AND p.tipo_condicao = 'novo' -- Apenas itens novos em estoque
             ORDER BY p.nome ASC, si.serie ASC
+        ");
+        return $this->db->resultSet();
+    }
+
+    // Itens físicos disponíveis para venda (qualquer condição), com preço por item
+    public function getAllAvailableStockItemsForSale(){
+        $this->db->query(" 
+            SELECT 
+                si.id as stock_item_id,
+                si.product_id,
+                si.preco_venda,
+                si.condicao,
+                si.serie,
+                si.grade,
+                p.nome as product_nome,
+                p.sku,
+                b.nome as brand_nome
+            FROM stock_items si
+            JOIN products p ON si.product_id = p.id
+            JOIN brands b ON p.brand_id = b.id
+            WHERE si.status = 'em_estoque'
+            ORDER BY p.nome ASC, si.id ASC
         ");
         return $this->db->resultSet();
     }
@@ -128,14 +171,15 @@ class StockModel {
 
     public function getProductStockBalance($product_id){
         $this->db->query("
-            SELECT 
-                COALESCE(
-                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id AND tipo IN ('entrada', 'emprestimo_retorno')), 0
-                ) - COALESCE(
-                    (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id AND tipo IN ('saida', 'emprestimo_saida', 'baixa_reserva')), 0
-                ) as saldo_calculado
+                SELECT 
+                    COALESCE(
+                        (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id_in AND tipo IN ('entrada', 'emprestimo_retorno')), 0
+                    ) - COALESCE(
+                        (SELECT SUM(qtd) FROM inventory_moves WHERE product_id = :product_id_out AND tipo IN ('saida', 'emprestimo_saida', 'baixa_reserva')), 0
+                    ) as saldo_calculado
         ");
-        $this->db->bind(':product_id', $product_id);
+            $this->db->bind(':product_id_in', $product_id);
+            $this->db->bind(':product_id_out', $product_id);
         $result = $this->db->single();
         return $result ? $result->saldo_calculado : 0;
     }
@@ -151,7 +195,11 @@ class StockModel {
     }
 
     public function markStockItemAsSold($stock_item_id, $order_id = null){
-        $this->db->beginTransaction();
+        $startedTransaction = false;
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+        }
         try {
             // Atualiza o status do item para vendido
             $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id = :stock_item_id");
@@ -172,12 +220,157 @@ class StockModel {
                 $this->db->execute();
             }
 
-            $this->db->commit();
+            if ($startedTransaction) {
+                $this->db->commit();
+            }
             return true;
         } catch (Exception $e){
-            $this->db->rollBack();
+            if ($startedTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log("Erro em markStockItemAsSold: " . $e->getMessage());
             return false;
+        }
+    }
+
+    // Marca item como reservado e cria movimentação de baixa de reserva
+    public function markStockItemAsReserved($stock_item_id, $order_id){
+        $startedTransaction = false;
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+        }
+        try {
+            // Atualiza o status do item para reservado
+            $this->db->query("UPDATE stock_items SET status = 'reservado' WHERE id = :stock_item_id AND status = 'em_estoque'");
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $this->db->execute();
+
+            if ($this->db->rowCount() === 0) {
+                throw new Exception('Item de estoque não disponível para reserva.');
+            }
+
+            // Busca informações do item para criar movimentação
+            $this->db->query("SELECT product_id FROM stock_items WHERE id = :stock_item_id");
+            $this->db->bind(':stock_item_id', $stock_item_id);
+            $stockItem = $this->db->single();
+
+            if($stockItem){
+                // Cria movimentação de baixa de reserva (contabiliza como saída)
+                $this->db->query("INSERT INTO inventory_moves (product_id, stock_item_id, tipo, qtd, ref_origem, id_origem, observacao) VALUES (:product_id, :stock_item_id, 'baixa_reserva', 1, 'Reserva Pedido', :order_id, 'Item reservado para pedido')");
+                $this->db->bind(':product_id', $stockItem->product_id);
+                $this->db->bind(':stock_item_id', $stock_item_id);
+                $this->db->bind(':order_id', $order_id);
+                $this->db->execute();
+            }
+
+            if ($startedTransaction) {
+                $this->db->commit();
+            }
+            return true;
+        } catch (Exception $e){
+            if ($startedTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Erro em markStockItemAsReserved: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    // Reserva até qtd itens disponíveis de um produto; retorna quantidade reservada
+    public function reserveAvailableItems($product_id, $qtd, $order_id){
+        $this->db->query("SELECT id FROM stock_items WHERE product_id = :pid AND status = 'em_estoque' ORDER BY id ASC LIMIT :limit");
+        $this->db->bind(':pid', $product_id);
+        // bind limit como int
+        $limit = (int)$qtd;
+        $this->db->bind(':limit', $limit, \PDO::PARAM_INT);
+        $items = $this->db->resultSet();
+        $count = 0;
+        foreach($items as $it){
+            $this->markStockItemAsReserved($it->id, $order_id);
+            $count++;
+        }
+        return $count;
+    }
+
+    // Converte reservas de um pedido em vendas efetivas
+    public function markReservedItemsAsSoldForOrder($order_id){
+        $startedTransaction = false;
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+        }
+        try {
+            // Seleciona as reservas deste pedido
+            $this->db->query("SELECT stock_item_id, product_id FROM inventory_moves WHERE tipo = 'baixa_reserva' AND id_origem = :order_id");
+            $this->db->bind(':order_id', $order_id);
+            $reservas = $this->db->resultSet();
+
+            foreach($reservas as $res){
+                if (!is_null($res->stock_item_id)) {
+                    // Atualiza o status do item para vendido
+                    $this->db->query("UPDATE stock_items SET status = 'vendido' WHERE id = :sid");
+                    $this->db->bind(':sid', $res->stock_item_id);
+                    $this->db->execute();
+
+                    // Converte a movimentação de baixa de reserva em saída definitiva
+                    $this->db->query("UPDATE inventory_moves SET tipo = 'saida', ref_origem = 'Venda', observacao = 'Reserva convertida em venda' WHERE tipo = 'baixa_reserva' AND id_origem = :order_id AND stock_item_id = :sid");
+                    $this->db->bind(':order_id', $order_id);
+                    $this->db->bind(':sid', $res->stock_item_id);
+                    $this->db->execute();
+                }
+            }
+
+            // Converte reservas genéricas (sem stock_item_id) em saídas definitivas
+            $this->db->query("UPDATE inventory_moves SET tipo = 'saida', ref_origem = 'Venda', observacao = 'Reserva (genérica) convertida em venda' WHERE tipo = 'baixa_reserva' AND id_origem = :order_id AND stock_item_id IS NULL");
+            $this->db->bind(':order_id', $order_id);
+            $this->db->execute();
+
+            if ($startedTransaction) {
+                $this->db->commit();
+            }
+            return true;
+        } catch (Exception $e){
+            if ($startedTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Erro em markReservedItemsAsSoldForOrder: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    // Libera reservas (volta itens para em_estoque) e marca movimentos como reserva_cancelada
+    public function releaseReservedItemsForOrder($order_id){
+        $startedTransaction = false;
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+        }
+        try {
+            $this->db->query("SELECT stock_item_id FROM inventory_moves WHERE tipo = 'baixa_reserva' AND id_origem = :order_id");
+            $this->db->bind(':order_id', $order_id);
+            $reservas = $this->db->resultSet();
+
+            foreach($reservas as $res){
+                $this->db->query("UPDATE stock_items SET status = 'em_estoque' WHERE id = :sid AND status = 'reservado'");
+                $this->db->bind(':sid', $res->stock_item_id);
+                $this->db->execute();
+            }
+
+            $this->db->query("UPDATE inventory_moves SET tipo = 'reserva_cancelada', observacao = 'Reserva cancelada' WHERE tipo = 'baixa_reserva' AND id_origem = :order_id");
+            $this->db->bind(':order_id', $order_id);
+            $this->db->execute();
+
+            if ($startedTransaction) {
+                $this->db->commit();
+            }
+            return true;
+        } catch (Exception $e){
+            if ($startedTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Erro em releaseReservedItemsForOrder: " . $e->getMessage());
+            throw $e;
         }
     }
 

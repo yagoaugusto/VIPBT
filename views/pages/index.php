@@ -8,7 +8,7 @@
 </div>
 
 <div class="quick-access-section">
-    <h2 class="quick-access-title">
+    <h2 class="quick-access-title text-gradient">
         <i class="fas fa-rocket me-2"></i>Acesso Rápido às Funcionalidades
     </h2>
     
@@ -77,13 +77,7 @@
                 <p>Entre no sistema para acessar as funcionalidades</p>
             </a>
             
-            <a href="<?php echo URL_ROOT; ?>/pages/about" class="quick-access-card animate-fade-in-up">
-                <div class="quick-access-icon">
-                    <i class="fas fa-info-circle"></i>
-                </div>
-                <h4>Sobre Nós</h4>
-                <p>Conheça mais sobre a VIP LOJA BT</p>
-            </a>
+            
         <?php endif; ?>
     </div>
     

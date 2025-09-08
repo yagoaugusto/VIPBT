@@ -52,14 +52,18 @@
                 <fieldset class="border p-3 mb-3">
                     <legend class="w-auto">Itens do Pedido</legend>
                     <div class="row">
-                        <div class="col-md-6">
-                            <label for="product_search">Adicionar Produto:</label>
-                            <select id="product_search" class="form-select">
-                                <option value="">Digite para buscar um produto...</option>
-                                <?php foreach($products as $product): ?>
-                                    <option value="<?php echo $product->id; ?>" data-price="<?php echo $product->preco; ?>"><?php echo $product->nome; ?> (R$ <?php echo number_format($product->preco, 2, ',', '.'); ?>)</option>
+                        <div class="col-md-8">
+                            <label for="stock_item_search">Adicionar Item Físico:</label>
+                            <input type="text" id="stock_item_search" class="form-control" list="stock_item_list" placeholder="Digite para buscar e selecione o item...">
+                            <datalist id="stock_item_list">
+                                <?php foreach($available_stock_items as $it): ?>
+                                    <?php 
+                                        $preco = isset($it->preco_venda) && $it->preco_venda !== null ? (float)$it->preco_venda : 0.0; 
+                                        $label = '#' . $it->stock_item_id . ' - ' . $it->product_nome . ' (' . $it->sku . ') - R$ ' . number_format($preco, 2, ',', '.');
+                                    ?>
+                                    <option value="<?php echo $label; ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                         </div>
                         <div class="col-md-2">
                             <label>&nbsp;</label>
@@ -70,7 +74,7 @@
                     <table class="table" id="order-items-table">
                         <thead>
                             <tr>
-                                <th>Produto</th>
+                                <th>Item</th>
                                 <th width="120px">Qtd.</th>
                                 <th width="150px">Preço Unit.</th>
                                 <th width="150px">Desconto</th>
@@ -157,5 +161,15 @@
 </div>
 
 <script>
-    // Script para o formulário de pedido
+    window.availableStockItems = <?php 
+        $items = array_map(function($it){
+            return [
+                'label' => '#' . $it->stock_item_id . ' - ' . $it->product_nome . ' (' . $it->sku . ') - R$ ' . number_format((isset($it->preco_venda) && $it->preco_venda !== null ? (float)$it->preco_venda : 0.0), 2, ',', '.'),
+                'stock_item_id' => (int)$it->stock_item_id,
+                'product_id' => (int)$it->product_id,
+                'price' => (float)(isset($it->preco_venda) && $it->preco_venda !== null ? $it->preco_venda : 0)
+            ];
+        }, $available_stock_items);
+        echo json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    ?>;
 </script>

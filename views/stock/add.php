@@ -39,6 +39,15 @@
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="preco_venda">Preço de Venda (R$):</label>
+                            <input type="text" name="preco_venda" class="form-control <?php echo (!empty($preco_venda_err)) ? 'is-invalid' : ''; ?>" value="<?php echo $preco_venda; ?>">
+                            <span class="invalid-feedback"><?php echo $preco_venda_err; ?></span>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group mb-3">
                     <label for="observacao">Observação:</label>
                     <textarea name="observacao" class="form-control"><?php echo $observacao; ?></textarea>
