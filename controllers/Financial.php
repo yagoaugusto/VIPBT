@@ -71,6 +71,50 @@ class Financial extends Controller {
         $this->view('financial/receivables', $data);
     }
 
+    // Atualiza a data de cobrança via AJAX
+    public function updateChargeDate($order_id){
+        if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+            http_response_code(405);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+            exit();
+        }
+
+        $json = file_get_contents('php://input');
+        $payload = json_decode($json, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($payload)) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Payload inválido']);
+            exit();
+        }
+
+        $date = $payload['data_cobranca'] ?? null; // formato esperado: Y-m-d ou null
+        // Validação simples: permitir null ou padrão yyyy-mm-dd
+        if (!is_null($date) && $date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Data inválida (use YYYY-MM-DD).']);
+            exit();
+        }
+
+        try {
+            $row = $this->receivableModel->updateChargeDate($order_id, $date);
+            header('Content-Type: application/json');
+            if (!$row) {
+                echo json_encode(['success' => false, 'message' => 'Registro de contas a receber não encontrado.']);
+            } else {
+                echo json_encode([
+                    'success' => true,
+                    'data_cobranca' => isset($row->data_cobranca) ? $row->data_cobranca : null,
+                    'atualizado_em' => isset($row->atualizado_em) ? $row->atualizado_em : null
+                ]);
+            }
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
     
 
     public function addPayment($order_id){
