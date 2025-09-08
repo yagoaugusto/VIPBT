@@ -86,6 +86,10 @@
                                 <i class="fas fa-chart-line me-1"></i>Financeiro
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarFinanceiro">
+                                <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/financial/indicators">
+                                    <i class="fas fa-chart-bar me-2"></i>Indicadores
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/financial/receivables">
                                     <i class="fas fa-money-bill-wave me-2"></i>Contas a Receber
                                 </a></li>
