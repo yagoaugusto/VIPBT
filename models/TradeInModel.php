@@ -135,12 +135,40 @@ class TradeInModel {
     }
 
     public function addOrderCredit($order_id, $trade_in_id, $valor){
-        $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
-        $this->db->bind(':order_id', $order_id);
-        $this->db->bind(':descricao', 'Crédito de Trade-in #' . $trade_in_id);
-        $this->db->bind(':valor', $valor);
-        $this->db->bind(':trade_in_id', $trade_in_id);
-        return $this->db->execute();
+        try {
+            // Check if order_credits table has trade_in_id column
+            $this->db->query("
+                SELECT COUNT(*) as column_exists 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'order_credits' 
+                AND COLUMN_NAME = 'trade_in_id'
+            ");
+            $result = $this->db->single();
+            $hasTradeInColumn = $result && $result->column_exists > 0;
+            
+            if ($hasTradeInColumn) {
+                // Use new schema with trade_in_id column
+                $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
+                $this->db->bind(':order_id', $order_id);
+                $this->db->bind(':descricao', 'Crédito de Trade-in #' . $trade_in_id);
+                $this->db->bind(':valor', $valor);
+                $this->db->bind(':trade_in_id', $trade_in_id);
+            } else {
+                // Use old schema without trade_in_id column
+                $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor) VALUES (:order_id, 'trade_in', :descricao, :valor)");
+                $this->db->bind(':order_id', $order_id);
+                $this->db->bind(':descricao', 'Crédito de Trade-in #' . $trade_in_id);
+                $this->db->bind(':valor', $valor);
+                
+                error_log("TradeInModel: Using fallback mode for order_credits without trade_in_id column.");
+            }
+            
+            return $this->db->execute();
+        } catch (Exception $e) {
+            error_log("TradeInModel::addOrderCredit error: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function markTradeInAsUsed($trade_in_id){

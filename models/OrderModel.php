@@ -192,13 +192,8 @@ class OrderModel {
                 $tradeInModel = new TradeInModel();
                 
                 foreach($data['tradeins'] as $tradein){
-                    // Aplica o crédito de trade-in
-                    $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
-                    $this->db->bind(':order_id', $orderId);
-                    $this->db->bind(':descricao', 'Crédito de Trade-in #' . $tradein['id']);
-                    $this->db->bind(':valor', $tradein['credit']);
-                    $this->db->bind(':trade_in_id', $tradein['id']);
-                    $this->db->execute();
+                    // Aplica o crédito de trade-in usando método robusto
+                    $this->insertOrderCredit($orderId, 'trade_in', 'Crédito de Trade-in #' . $tradein['id'], $tradein['credit'], $tradein['id']);
                     
                     // Marca o trade-in como creditado/usado
                     $tradeInModel->markTradeInAsUsed($tradein['id']);
@@ -253,17 +248,12 @@ class OrderModel {
     public function applyCreditToOrder($order_id, $credit_value, $trade_in_id = null){
         $this->db->beginTransaction();
         try {
-            // Adiciona o crédito na tabela order_credits
+            // Adiciona o crédito na tabela order_credits usando método robusto
             $description = 'Crédito de Trade-in';
             if($trade_in_id){
                 $description .= ' #' . $trade_in_id;
             }
-            $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, 'trade_in', :descricao, :valor, :trade_in_id)");
-            $this->db->bind(':order_id', $order_id);
-            $this->db->bind(':descricao', $description);
-            $this->db->bind(':valor', $credit_value);
-            $this->db->bind(':trade_in_id', $trade_in_id);
-            $this->db->execute();
+            $this->insertOrderCredit($order_id, 'trade_in', $description, $credit_value, $trade_in_id);
 
             // Atualiza o valor a receber do pedido
             $this->db->query("UPDATE receivables SET valor_a_receber = valor_a_receber - :credit_value WHERE order_id = :order_id");
@@ -552,34 +542,71 @@ class OrderModel {
         return $this->db->resultSet();
     }
 
+    // Check if trade_in_id column exists in order_credits table
+    private function orderCreditsHasTradeInColumn(){
+        try {
+            $this->db->query("
+                SELECT COUNT(*) as column_exists 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'order_credits' 
+                AND COLUMN_NAME = 'trade_in_id'
+            ");
+            $result = $this->db->single();
+            return $result && $result->column_exists > 0;
+        } catch (Exception $e) {
+            // If we can't check schema, assume column doesn't exist
+            error_log("Cannot check order_credits schema: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Insert credit with conditional trade_in_id handling
+    private function insertOrderCredit($order_id, $origem, $descricao, $valor, $trade_in_id = null){
+        $hasTradeInColumn = $this->orderCreditsHasTradeInColumn();
+        
+        if ($hasTradeInColumn) {
+            // Use new schema with trade_in_id column
+            $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor, trade_in_id) VALUES (:order_id, :origem, :descricao, :valor, :trade_in_id)");
+            $this->db->bind(':order_id', $order_id);
+            $this->db->bind(':origem', $origem);
+            $this->db->bind(':descricao', $descricao);
+            $this->db->bind(':valor', $valor);
+            $this->db->bind(':trade_in_id', $trade_in_id);
+        } else {
+            // Use old schema without trade_in_id column
+            $this->db->query("INSERT INTO order_credits (order_id, origem, descricao, valor) VALUES (:order_id, :origem, :descricao, :valor)");
+            $this->db->bind(':order_id', $order_id);
+            $this->db->bind(':origem', $origem);
+            $this->db->bind(':descricao', $descricao);
+            $this->db->bind(':valor', $valor);
+            
+            // Log that we're using fallback mode
+            error_log("OrderModel: Using fallback mode for order_credits without trade_in_id column. Consider running database updates.");
+        }
+        
+        $this->db->execute();
+    }
+
     // Check if required database columns exist
     private function checkRequiredTableColumns(){
-        // Check if order_credits table has trade_in_id column
-        $this->db->query("
-            SELECT COUNT(*) as column_exists 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() 
-            AND TABLE_NAME = 'order_credits' 
-            AND COLUMN_NAME = 'trade_in_id'
-        ");
-        $result = $this->db->single();
-        
-        if (!$result || $result->column_exists == 0) {
-            throw new Exception("Database schema incomplete: order_credits table missing trade_in_id column. Please run database updates.");
-        }
-
         // Check if orders table has total column
-        $this->db->query("
-            SELECT COUNT(*) as column_exists 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() 
-            AND TABLE_NAME = 'orders' 
-            AND COLUMN_NAME = 'total'
-        ");
-        $result = $this->db->single();
-        
-        if (!$result || $result->column_exists == 0) {
-            throw new Exception("Database schema incomplete: orders table missing total column. Please run database updates.");
+        try {
+            $this->db->query("
+                SELECT COUNT(*) as column_exists 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'orders' 
+                AND COLUMN_NAME = 'total'
+            ");
+            $result = $this->db->single();
+            
+            if (!$result || $result->column_exists == 0) {
+                throw new Exception("Database schema incomplete: orders table missing total column. Please run database updates.");
+            }
+        } catch (Exception $e) {
+            error_log("Error checking orders table schema: " . $e->getMessage());
+            throw new Exception("Unable to verify database schema. Please check database connection and run database updates.");
         }
     }
 }
