@@ -44,7 +44,7 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total de Pedidos</div>
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Total de Pedidos</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($overview->total_orders ?? 0); ?></div>
                     </div>
                     <div class="col-auto">
@@ -60,7 +60,7 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Vendas Confirmadas</div>
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Vendas Confirmadas</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo number_format($overview->total_sales ?? 0); ?></div>
                     </div>
                     <div class="col-auto">
@@ -76,7 +76,7 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Valor Recebido</div>
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Valor Recebido</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">R$ <?php echo number_format($overview->amount_received ?? 0, 2, ',', '.'); ?></div>
                     </div>
                     <div class="col-auto">
@@ -92,7 +92,7 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Valor a Receber</div>
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Valor a Receber</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">R$ <?php echo number_format($overview->amount_to_receive ?? 0, 2, ',', '.'); ?></div>
                     </div>
                     <div class="col-auto">
@@ -109,7 +109,7 @@
     <div class="col-xl-8 col-lg-7">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Receita por Mês</h6>
+                <h6 class="m-0 font-weight-bold text-dark">Receita por Mês</h6>
             </div>
             <div class="card-body">
                 <div class="chart-area">
@@ -122,7 +122,7 @@
     <div class="col-xl-4 col-lg-5">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Métodos de Pagamento</h6>
+                <h6 class="m-0 font-weight-bold text-dark">Métodos de Pagamento</h6>
             </div>
             <div class="card-body">
                 <div class="chart-pie pt-4 pb-2">
@@ -139,7 +139,7 @@
     <div class="col-lg-6 mb-4">
         <div class="card shadow">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
+                <h6 class="m-0 font-weight-bold text-dark">
                     <i class="fas fa-trophy me-2"></i>Produtos Mais Vendidos
                 </h6>
             </div>
@@ -194,7 +194,7 @@
     <div class="col-lg-6 mb-4">
         <div class="card shadow">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
+                <h6 class="m-0 font-weight-bold text-dark">
                     <i class="fas fa-user-tie me-2"></i>Top Clientes por Compras
                 </h6>
             </div>
@@ -241,7 +241,7 @@
     <div class="col-lg-6 mb-4">
         <div class="card shadow">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
+                <h6 class="m-0 font-weight-bold text-dark">
                     <i class="fas fa-handshake me-2"></i>Top Clientes por Empréstimos
                 </h6>
             </div>
@@ -286,7 +286,7 @@
     <div class="col-lg-6 mb-4">
         <div class="card shadow">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
+                <h6 class="m-0 font-weight-bold text-dark">
                     <i class="fas fa-chart-line me-2"></i>Performance por Canal de Venda
                 </h6>
             </div>
@@ -347,6 +347,19 @@
 .shadow {
     box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
 }
+/* Melhorias de contraste */
+.card-header {
+    background-color: #f8f9fc !important;
+}
+.card-header h6,
+.card .text-xs,
+.card .h5 {
+    color: #212529 !important;
+}
+.table thead th {
+    background-color: #f8f9fc;
+    color: #212529;
+}
 </style>
 
 <script>
@@ -381,22 +394,31 @@ new Chart(ctx1, {
             y: {
                 beginAtZero: true,
                 ticks: {
+                    color: '#495057',
                     callback: function(value) {
                         return 'R$ ' + value.toLocaleString('pt-BR');
                     }
-                }
+                },
+                grid: { color: 'rgba(0,0,0,0.05)' }
+            },
+            x: {
+                ticks: { color: '#495057' },
+                grid: { color: 'rgba(0,0,0,0.03)' }
             }
         },
         plugins: {
             legend: {
-                display: false
+                display: false,
+                labels: { color: '#495057' }
             },
             tooltip: {
                 callbacks: {
                     label: function(context) {
                         return 'Receita: R$ ' + context.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
-                }
+                },
+                titleColor: '#212529',
+                bodyColor: '#212529'
             }
         }
     }
@@ -444,7 +466,8 @@ new Chart(ctx2, {
                 position: 'bottom',
                 labels: {
                     boxWidth: 12,
-                    padding: 15
+                    padding: 15,
+                    color: '#495057'
                 }
             },
             tooltip: {
@@ -454,7 +477,9 @@ new Chart(ctx2, {
                         const percentage = ((context.parsed / total) * 100).toFixed(1);
                         return context.label + ': R$ ' + context.parsed.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + ' (' + percentage + '%)';
                     }
-                }
+                },
+                titleColor: '#212529',
+                bodyColor: '#212529'
             }
         }
     }

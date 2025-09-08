@@ -93,9 +93,7 @@
                                 <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/financial/receivables">
                                     <i class="fas fa-money-bill-wave me-2"></i>Contas a Receber
                                 </a></li>
-                                <li><a class="dropdown-item" href="<?php echo URL_ROOT; ?>/financial/commissions">
-                                    <i class="fas fa-percentage me-2"></i>Comissões
-                                </a></li>
+                                
                             </ul>
                         </li>
                     <?php endif; ?>

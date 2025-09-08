@@ -25,7 +25,7 @@ class Financial extends Controller {
 
         $this->paymentModel = $this->model('PaymentModel');
         $this->receivableModel = $this->model('ReceivableModel');
-        $this->commissionModel = $this->model('CommissionModel');
+        
         $this->orderModel = $this->model('OrderModel');
         $this->financialIndicatorsModel = $this->model('FinancialIndicatorsModel');
     }
@@ -71,14 +71,7 @@ class Financial extends Controller {
         $this->view('financial/receivables', $data);
     }
 
-    public function commissions(){
-        $comissions = $this->commissionModel->getAllCommissions();
-        $data = [
-            'title' => 'Comissões',
-            'comissions' => $comissions
-        ];
-        $this->view('financial/comissions', $data);
-    }
+    
 
     public function addPayment($order_id){
         if($_SERVER['REQUEST_METHOD'] == 'POST'){
