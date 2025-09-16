@@ -370,8 +370,9 @@
                                 <?php foreach ($seller_stats as $s): ?>
                                     <?php 
                                         $reven = (float)($s->total_revenue ?? 0);
+                                        $amountReceived = (float)($s->amount_received ?? 0);
                                         $profit = (float)($s->profit ?? 0);
-                                        $margin = $reven > 0 ? ($profit / $reven) : 0;
+                                        $margin = $amountReceived > 0 ? ($profit / $amountReceived) : 0;
                                     ?>
                                     <tr>
                                         <td><strong><?php echo htmlspecialchars($s->seller_name); ?></strong></td>
