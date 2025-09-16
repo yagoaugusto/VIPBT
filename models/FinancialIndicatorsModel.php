@@ -24,7 +24,7 @@ class FinancialIndicatorsModel {
             $params[':end_date'] = $end_date;
         }
 
-        // Observação: custo considera o preço de custo vigente na data do pedido
+        // Observação: lucratividade considera valor recebido menos custo real de aquisição dos itens vendidos
         $this->db->query("
             SELECT 
                 COUNT(DISTINCT o.id) as total_orders,
@@ -32,14 +32,27 @@ class FinancialIndicatorsModel {
                 COALESCE(SUM(CASE WHEN o.status_pedido = 'faturado' OR o.status_pedido = 'vendido' THEN oi.qtd * oi.preco_unit - oi.desconto END), 0) as total_revenue,
                 COALESCE(SUM(r.valor_recebido), 0) as amount_received,
                 COALESCE(SUM(r.valor_a_receber), 0) as amount_to_receive,
-                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo, 0)) END), 0) as total_cost,
+                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') 
+                    THEN (
+                        CASE 
+                            WHEN oi.stock_item_id IS NOT NULL THEN oi.qtd * COALESCE(si.aquisicao_custo, 0)
+                            ELSE oi.qtd * COALESCE(pp.custo, 0)
+                        END
+                    ) END), 0) as total_cost,
                 COALESCE(
-                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END)
-                    - SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo, 0)) END)
+                    SUM(r.valor_recebido) - 
+                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') 
+                        THEN (
+                            CASE 
+                                WHEN oi.stock_item_id IS NOT NULL THEN oi.qtd * COALESCE(si.aquisicao_custo, 0)
+                                ELSE oi.qtd * COALESCE(pp.custo, 0)
+                            END
+                        ) END)
                 , 0) as profit
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
             LEFT JOIN receivables r ON o.id = r.order_id
+            LEFT JOIN stock_items si ON oi.stock_item_id = si.id
             LEFT JOIN product_prices pp ON pp.product_id = oi.product_id 
                 AND pp.vigente_desde = (
                     SELECT MAX(pp2.vigente_desde) 
@@ -55,11 +68,11 @@ class FinancialIndicatorsModel {
         }
         
         $row = $this->db->single();
-        // Calcula margem de lucro se possível
+        // Calcula margem de lucro baseada no valor recebido, não na receita total
         if ($row) {
-            $totalRevenue = isset($row->total_revenue) ? (float)$row->total_revenue : 0.0;
+            $amountReceived = isset($row->amount_received) ? (float)$row->amount_received : 0.0;
             $profit = isset($row->profit) ? (float)$row->profit : 0.0;
-            $row->profit_margin = $totalRevenue > 0 ? ($profit / $totalRevenue) : 0.0;
+            $row->profit_margin = $amountReceived > 0 ? ($profit / $amountReceived) : 0.0;
         }
         return $row;
     }
@@ -290,8 +303,46 @@ class FinancialIndicatorsModel {
             $params[':end_date'] = $end_date;
         }
 
-        // Estatísticas por vendedor considerando pedidos vendidos/faturados
-        $this->db->query("\n            SELECT\n                u.id as user_id,\n                u.nome as seller_name,\n                COUNT(DISTINCT CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN o.id END) as total_sales,\n                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END), 0) as total_revenue,\n                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo,0)) END), 0) as total_cost,\n                COALESCE(\n                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END) -\n                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo,0)) END)\n                , 0) as profit\n            FROM sellers s\n            JOIN users u ON u.id = s.user_id AND u.ativo = 1\n            LEFT JOIN orders o ON o.seller_id = s.id\n            LEFT JOIN order_items oi ON o.id = oi.order_id\n            LEFT JOIN product_prices pp ON pp.product_id = oi.product_id\n                AND pp.vigente_desde = (\n                    SELECT MAX(pp2.vigente_desde) FROM product_prices pp2\n                    WHERE pp2.product_id = oi.product_id AND pp2.vigente_desde <= o.data\n                )\n            WHERE 1=1 {$dateFilter}\n            GROUP BY u.id, u.nome\n            ORDER BY total_revenue DESC\n        ");
+        // Estatísticas por vendedor considerando valor recebido e custo real de aquisição
+        $this->db->query("
+            SELECT
+                u.id as user_id,
+                u.nome as seller_name,
+                COUNT(DISTINCT CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN o.id END) as total_sales,
+                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END), 0) as total_revenue,
+                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') 
+                    THEN (
+                        CASE 
+                            WHEN oi.stock_item_id IS NOT NULL THEN oi.qtd * COALESCE(si.aquisicao_custo, 0)
+                            ELSE oi.qtd * COALESCE(pp.custo, 0)
+                        END
+                    ) END), 0) as total_cost,
+                COALESCE(SUM(r.valor_recebido), 0) as amount_received,
+                COALESCE(
+                    SUM(r.valor_recebido) -
+                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') 
+                        THEN (
+                            CASE 
+                                WHEN oi.stock_item_id IS NOT NULL THEN oi.qtd * COALESCE(si.aquisicao_custo, 0)
+                                ELSE oi.qtd * COALESCE(pp.custo, 0)
+                            END
+                        ) END)
+                , 0) as profit
+            FROM sellers s
+            JOIN users u ON u.id = s.user_id AND u.ativo = 1
+            LEFT JOIN orders o ON o.seller_id = s.id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN receivables r ON o.id = r.order_id
+            LEFT JOIN stock_items si ON oi.stock_item_id = si.id
+            LEFT JOIN product_prices pp ON pp.product_id = oi.product_id
+                AND pp.vigente_desde = (
+                    SELECT MAX(pp2.vigente_desde) FROM product_prices pp2
+                    WHERE pp2.product_id = oi.product_id AND pp2.vigente_desde <= o.data
+                )
+            WHERE 1=1 {$dateFilter}
+            GROUP BY u.id, u.nome
+            ORDER BY total_revenue DESC
+        ");
 
         foreach ($params as $param => $value) {
             $this->db->bind($param, $value);
