@@ -102,6 +102,28 @@
             </div>
         </div>
     </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Lucratividade</div>
+                        <?php 
+                            $profit = (float)($overview->profit ?? 0); 
+                            $margin = isset($overview->profit_margin) ? (float)$overview->profit_margin : 0; 
+                        ?>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">R$ <?php echo number_format($profit, 2, ',', '.'); ?>
+                            <small class="text-muted ms-1">(<?php echo number_format($margin*100, 1, ',', '.'); ?>%)</small>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Charts Row -->
@@ -112,7 +134,7 @@
                 <h6 class="m-0 font-weight-bold text-dark">Receita por Mês</h6>
             </div>
             <div class="card-body">
-                <div class="chart-area">
+                <div class="chart-area fixed-chart-height">
                     <canvas id="monthlyRevenueChart"></canvas>
                 </div>
             </div>
@@ -125,7 +147,7 @@
                 <h6 class="m-0 font-weight-bold text-dark">Métodos de Pagamento</h6>
             </div>
             <div class="card-body">
-                <div class="chart-pie pt-4 pb-2">
+                <div class="chart-pie pt-4 pb-2 fixed-chart-height">
                     <canvas id="paymentMethodChart"></canvas>
                 </div>
             </div>
@@ -323,6 +345,55 @@
             </div>
         </div>
     </div>
+    
+    <!-- Detalhamento por Vendedor -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-dark">
+                    <i class="fas fa-user-check me-2"></i>Detalhamento por Vendedor
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (!empty($seller_stats)): ?>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Vendedor</th>
+                                    <th>Qtd Vendas</th>
+                                    <th>Valor Vendido</th>
+                                    <th>Lucratividade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($seller_stats as $s): ?>
+                                    <?php 
+                                        $reven = (float)($s->total_revenue ?? 0);
+                                        $profit = (float)($s->profit ?? 0);
+                                        $margin = $reven > 0 ? ($profit / $reven) : 0;
+                                    ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($s->seller_name); ?></strong></td>
+                                        <td><span class="badge bg-primary"><?php echo number_format($s->total_sales ?? 0); ?></span></td>
+                                        <td class="text-success">R$ <?php echo number_format($reven, 2, ',', '.'); ?></td>
+                                        <td class="text-dark">R$ <?php echo number_format($profit, 2, ',', '.'); ?>
+                                            <small class="text-muted">(<?php echo number_format($margin*100, 1, ',', '.'); ?>%)</small>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-check fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Sem vendas no período</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Include Chart.js -->
@@ -359,6 +430,23 @@
 .table thead th {
     background-color: #f8f9fc;
     color: #212529;
+}
+/* Altura fixa para equalizar os gráficos */
+.fixed-chart-height {
+    position: relative;
+    height: 320px; /* mesma altura para linha e pizza */
+}
+/* Tooltips claros e com melhor contraste */
+:root {
+    --tooltip-bg: #ffffff;
+    --tooltip-text: #111827; /* gray-900 */
+    --tooltip-border: rgba(17,24,39,0.12);
+}
+.chartjs-tooltip {
+    background: var(--tooltip-bg) !important;
+    color: var(--tooltip-text) !important;
+    border: 1px solid var(--tooltip-border) !important;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1) !important;
 }
 </style>
 
@@ -412,13 +500,18 @@ new Chart(ctx1, {
                 labels: { color: '#495057' }
             },
             tooltip: {
+                backgroundColor: '#ffffff',
+                borderColor: 'rgba(17,24,39,0.12)',
+                borderWidth: 1,
+                titleColor: '#111827',
+                bodyColor: '#111827',
+                displayColors: false,
+                caretPadding: 6,
                 callbacks: {
                     label: function(context) {
                         return 'Receita: R$ ' + context.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
-                },
-                titleColor: '#212529',
-                bodyColor: '#212529'
+                }
             }
         }
     }
@@ -471,15 +564,19 @@ new Chart(ctx2, {
                 }
             },
             tooltip: {
+                backgroundColor: '#ffffff',
+                borderColor: 'rgba(17,24,39,0.12)',
+                borderWidth: 1,
+                titleColor: '#111827',
+                bodyColor: '#111827',
+                displayColors: true,
                 callbacks: {
                     label: function(context) {
                         const total = context.dataset.data.reduce((a, b) => a + b, 0);
                         const percentage = ((context.parsed / total) * 100).toFixed(1);
                         return context.label + ': R$ ' + context.parsed.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + ' (' + percentage + '%)';
                     }
-                },
-                titleColor: '#212529',
-                bodyColor: '#212529'
+                }
             }
         }
     }

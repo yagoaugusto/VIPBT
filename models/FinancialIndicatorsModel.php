@@ -24,16 +24,29 @@ class FinancialIndicatorsModel {
             $params[':end_date'] = $end_date;
         }
 
+        // Observação: custo considera o preço de custo vigente na data do pedido
         $this->db->query("
             SELECT 
                 COUNT(DISTINCT o.id) as total_orders,
                 COUNT(DISTINCT CASE WHEN o.status_pedido = 'faturado' OR o.status_pedido = 'vendido' THEN o.id END) as total_sales,
                 COALESCE(SUM(CASE WHEN o.status_pedido = 'faturado' OR o.status_pedido = 'vendido' THEN oi.qtd * oi.preco_unit - oi.desconto END), 0) as total_revenue,
                 COALESCE(SUM(r.valor_recebido), 0) as amount_received,
-                COALESCE(SUM(r.valor_a_receber), 0) as amount_to_receive
+                COALESCE(SUM(r.valor_a_receber), 0) as amount_to_receive,
+                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo, 0)) END), 0) as total_cost,
+                COALESCE(
+                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END)
+                    - SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo, 0)) END)
+                , 0) as profit
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
             LEFT JOIN receivables r ON o.id = r.order_id
+            LEFT JOIN product_prices pp ON pp.product_id = oi.product_id 
+                AND pp.vigente_desde = (
+                    SELECT MAX(pp2.vigente_desde) 
+                    FROM product_prices pp2 
+                    WHERE pp2.product_id = oi.product_id 
+                      AND pp2.vigente_desde <= o.data
+                )
             WHERE 1=1 {$dateFilter}
         ");
         
@@ -41,7 +54,14 @@ class FinancialIndicatorsModel {
             $this->db->bind($param, $value);
         }
         
-        return $this->db->single();
+        $row = $this->db->single();
+        // Calcula margem de lucro se possível
+        if ($row) {
+            $totalRevenue = isset($row->total_revenue) ? (float)$row->total_revenue : 0.0;
+            $profit = isset($row->profit) ? (float)$row->profit : 0.0;
+            $row->profit_margin = $totalRevenue > 0 ? ($profit / $totalRevenue) : 0.0;
+        }
+        return $row;
     }
 
     public function getMostSoldProducts($start_date = null, $end_date = null, $limit = 10) {
@@ -255,6 +275,28 @@ class FinancialIndicatorsModel {
             $this->db->bind($param, $value);
         }
         
+        return $this->db->resultSet();
+    }
+
+    public function getSellerStats($start_date = null, $end_date = null) {
+        $dateFilter = "";
+        $params = [];
+        if ($start_date) {
+            $dateFilter .= " AND o.data >= :start_date";
+            $params[':start_date'] = $start_date;
+        }
+        if ($end_date) {
+            $dateFilter .= " AND o.data <= :end_date";
+            $params[':end_date'] = $end_date;
+        }
+
+        // Estatísticas por vendedor considerando pedidos vendidos/faturados
+        $this->db->query("\n            SELECT\n                u.id as user_id,\n                u.nome as seller_name,\n                COUNT(DISTINCT CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN o.id END) as total_sales,\n                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END), 0) as total_revenue,\n                COALESCE(SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo,0)) END), 0) as total_cost,\n                COALESCE(\n                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * oi.preco_unit - oi.desconto) END) -\n                    SUM(CASE WHEN (o.status_pedido = 'faturado' OR o.status_pedido = 'vendido') THEN (oi.qtd * COALESCE(pp.custo,0)) END)\n                , 0) as profit\n            FROM sellers s\n            JOIN users u ON u.id = s.user_id AND u.ativo = 1\n            LEFT JOIN orders o ON o.seller_id = s.id\n            LEFT JOIN order_items oi ON o.id = oi.order_id\n            LEFT JOIN product_prices pp ON pp.product_id = oi.product_id\n                AND pp.vigente_desde = (\n                    SELECT MAX(pp2.vigente_desde) FROM product_prices pp2\n                    WHERE pp2.product_id = oi.product_id AND pp2.vigente_desde <= o.data\n                )\n            WHERE 1=1 {$dateFilter}\n            GROUP BY u.id, u.nome\n            ORDER BY total_revenue DESC\n        ");
+
+        foreach ($params as $param => $value) {
+            $this->db->bind($param, $value);
+        }
+
         return $this->db->resultSet();
     }
 }

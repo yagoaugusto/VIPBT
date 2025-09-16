@@ -42,7 +42,8 @@ class Financial extends Controller {
         $topCustomersByLoans = $this->financialIndicatorsModel->getTopCustomersByLoans($start_date, $end_date, 10);
         $salesChannelStats = $this->financialIndicatorsModel->getSalesChannelStats($start_date, $end_date);
         $paymentMethodStats = $this->financialIndicatorsModel->getPaymentMethodStats($start_date, $end_date);
-        $monthlyRevenueData = $this->financialIndicatorsModel->getMonthlyRevenueData($start_date, $end_date);
+    $monthlyRevenueData = $this->financialIndicatorsModel->getMonthlyRevenueData($start_date, $end_date);
+    $sellerStats = $this->financialIndicatorsModel->getSellerStats($start_date, $end_date);
 
         $data = [
             'title' => 'Indicadores Financeiros',
@@ -53,6 +54,7 @@ class Financial extends Controller {
             'sales_channel_stats' => $salesChannelStats,
             'payment_method_stats' => $paymentMethodStats,
             'monthly_revenue_data' => $monthlyRevenueData,
+            'seller_stats' => $sellerStats,
             'filters' => [
                 'start_date' => $start_date,
                 'end_date' => $end_date
