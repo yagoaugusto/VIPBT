@@ -1,3 +1,6 @@
+# Configuration files (keep example)
+config/config.php
+
 # Temporary files and demos
 demo_*.html
 test_*.php
@@ -14,3 +17,8 @@ composer.lock
 # Environment files
 .env
 .env.local
+
+# Uploaded files and cache
+uploads/
+cache/
+temp/
