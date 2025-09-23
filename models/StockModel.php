@@ -33,6 +33,49 @@ class StockModel {
         return $this->db->resultSet();
     }
 
+    // Lista com filtro rápido de busca por nome, SKU, marca, ID, série ou grade
+    public function getStockItems($search = null){
+        $sql = "
+            SELECT 
+                si.*,
+                p.nome as product_nome,
+                p.sku,
+                b.nome as brand_nome
+            FROM stock_items si
+            JOIN products p ON si.product_id = p.id
+            JOIN brands b ON p.brand_id = b.id
+            WHERE 1=1
+        ";
+        $params = [];
+        if($search !== null && $search !== ''){
+            $sql .= " AND (p.nome LIKE :q OR p.sku LIKE :q OR b.nome LIKE :q OR si.serie LIKE :q OR si.grade LIKE :q";
+            // Permite também buscar pelo ID exato
+            if (is_numeric($search)) {
+                $sql .= " OR si.id = :idExact";
+                $params[':idExact'] = (int)$search;
+            }
+            $sql .= ")";
+            $params[':q'] = '%' . $search . '%';
+        }
+        $sql .= "
+            ORDER BY 
+                CASE si.status 
+                    WHEN 'emprestado' THEN 1
+                    WHEN 'reservado' THEN 2
+                    WHEN 'em_estoque' THEN 3
+                    WHEN 'vendido' THEN 4
+                    ELSE 5
+                END,
+                p.nome ASC,
+                si.id ASC
+        ";
+        $this->db->query($sql);
+        foreach($params as $k=>$v){
+            $this->db->bind($k, $v);
+        }
+        return $this->db->resultSet();
+    }
+
     public function addStockMovement($data){
         $startedTransaction = false;
         if (!$this->db->inTransaction()) {
@@ -390,5 +433,25 @@ class StockModel {
             ];
         }
         return $availability;
+    }
+
+    // Exclui um item de estoque somente se estiver em_estoque
+    public function deleteStockItem($stock_item_id){
+        $this->db->query("DELETE FROM stock_items WHERE id = :id AND status = 'em_estoque'");
+        $this->db->bind(':id', $stock_item_id);
+        $this->db->execute();
+        return $this->db->rowCount() > 0;
+    }
+
+    // Atualiza o custo de aquisição do item; restringe apenas itens não vendidos/descartados
+    public function updateStockItemCost($stock_item_id, $new_cost){
+        if(!is_numeric($new_cost) || $new_cost < 0){
+            throw new \InvalidArgumentException('Custo inválido');
+        }
+        $this->db->query("UPDATE stock_items SET aquisicao_custo = :custo WHERE id = :id AND status NOT IN ('vendido','descartado')");
+        $this->db->bind(':custo', (float)$new_cost);
+        $this->db->bind(':id', $stock_item_id);
+        $this->db->execute();
+        return $this->db->rowCount() > 0;
     }
 }

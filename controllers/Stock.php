@@ -10,10 +10,12 @@ class Stock extends Controller {
     }
 
     public function index(){
-        $stockItems = $this->stockModel->getAllStockItems();
+        $q = isset($_GET['q']) ? trim($_GET['q']) : null;
+        $stockItems = $this->stockModel->getStockItems($q);
         $data = [
             'title' => 'Posição de Estoque',
-            'stockItems' => $stockItems
+            'stockItems' => $stockItems,
+            'q' => $q
         ];
         $this->view('stock/index', $data);
     }
@@ -130,6 +132,53 @@ class Stock extends Controller {
         } catch (Exception $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
+        exit();
+    }
+
+    // POST: /stock/delete/{id}
+    public function delete($id){
+        if(!core\Session::isLoggedIn()){
+            header('Location: ' . URL_ROOT . '/users/login');
+            exit();
+        }
+        if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+            header('Location: ' . URL_ROOT . '/stock');
+            exit();
+        }
+        $ok = $this->stockModel->deleteStockItem((int)$id);
+        core\Session::flash('stock_message', $ok ? 'Item excluído com sucesso.' : 'Não foi possível excluir. Apenas itens em estoque podem ser excluídos.');
+        header('Location: ' . URL_ROOT . '/stock');
+        exit();
+    }
+
+    // POST: /stock/updateCost/{id}
+    public function updateCost($id){
+        if(!core\Session::isLoggedIn()){
+            header('Location: ' . URL_ROOT . '/users/login');
+            exit();
+        }
+        if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+            header('Location: ' . URL_ROOT . '/stock');
+            exit();
+        }
+        $newCost = isset($_POST['aquisicao_custo']) ? str_replace([',','.'], ['','.'], $_POST['aquisicao_custo']) : null; // trata vírgulas
+        // Melhor: aceitar formato BR e EN
+        $raw = $_POST['aquisicao_custo'] ?? '0';
+        $normalized = preg_replace('/[^0-9,\.]/','', $raw);
+        // converte pt-BR (1.234,56) para 1234.56
+        if(strpos($normalized, ',') !== false && strpos($normalized, '.') !== false){
+            $normalized = str_replace('.', '', $normalized);
+            $normalized = str_replace(',', '.', $normalized);
+        } else if (strpos($normalized, ',') !== false){
+            $normalized = str_replace(',', '.', $normalized);
+        }
+        try{
+            $ok = $this->stockModel->updateStockItemCost((int)$id, (float)$normalized);
+            core\Session::flash('stock_message', $ok ? 'Custo atualizado com sucesso.' : 'Não foi possível atualizar o custo para este item.');
+        } catch (Exception $e){
+            core\Session::flash('stock_message', 'Erro: ' . $e->getMessage());
+        }
+        header('Location: ' . URL_ROOT . '/stock');
         exit();
     }
 }
